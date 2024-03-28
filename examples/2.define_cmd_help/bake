@@ -12,6 +12,7 @@
 
 
 # 模版脚本，用来获取本脚本的realpath
+# 我在我的所有脚本头都会放这个函数，方便得到真正的当前脚本目录
 # On Mac OS, readlink -f doesn't work, so use._real_path get the real path of the file
 _real_path() (
   cd "$(dirname "$1")"

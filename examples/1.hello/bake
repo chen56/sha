@@ -12,6 +12,7 @@
 
 
 # 模版脚本，用来获取本脚本的realpath
+# 我在我的所有脚本头都会放这个函数，方便得到真正的当前脚本目录
 # On Mac OS, readlink -f doesn't work, so use._real_path get the real path of the file
 _real_path() (
   cd "$(dirname "$1")"
@@ -30,23 +31,13 @@ SCRIPT_FILE="$(basename "$SCRIPT_PATH")"
 
 # 脚本动态安装bake.bash依赖到: vendor/bake.bash
 _install_bake(){
-  mkdir -p "./vendor"
-  echo " -> _install_bake ▶︎【curl -o ./bake.bash https://github.com/chen56/bake/raw/main/bake.bash】"
-  curl -L -o  "./vendor/bake.bash" https://github.com/chen56/bake/raw/main/bake.bash ;
+  mkdir -p "$SCRIPT_DIR/vendor"
+  echo "$SCRIPT_PATH -> _install_bake ▶︎【curl -o $SCRIPT_DIR/bake.bash https://github.com/chen56/bake/raw/main/bake.bash】"
+  curl -L -o  "$SCRIPT_DIR/vendor/bake.bash" https://github.com/chen56/bake/raw/main/bake.bash ;
 }
-if ! [[ -f "./vendor/bake.bash" ]]; then
+if ! [[ -f "$SCRIPT_DIR/vendor/bake.bash" ]]; then
   _install_bake
 fi
-source "./vendor/bake.bash"
-
-# _install_bake(){
-#   mkdir -p "$SCRIPT_DIR/vendor"
-#   echo "$SCRIPT_PATH -> _install_bake ▶︎【curl -o $SCRIPT_DIR/bake.bash https://github.com/chen56/bake/raw/main/bake.bash】"
-#   curl -L -o  "$SCRIPT_DIR/vendor/bake.bash" https://github.com/chen56/bake/raw/main/bake.bash ;
-# }
-# if ! [[ -f "$SCRIPT_DIR/vendor/bake.bash" ]]; then
-#   _install_bake
-# fi
 
 # include common script
 source "$SCRIPT_DIR/vendor/bake.bash"
