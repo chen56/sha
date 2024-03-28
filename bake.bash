@@ -8,13 +8,10 @@ set -o pipefail  # default pipeline status==last command status, If set, status=
 _bake_version=v0.3.20240327
 
 # v0.2.20230528 - It can run normally on macos
-# todo
-#   1. 当前 无法判断错误命令：./bake no_this_cmd ,因为不知道这是否是此命令的参数，
-#      需要设置设一个简单的规则：只有叶子命令才能正常执行，这样非叶子命令就不需要有参数
-#   2. 当前 无法判断错误options：./bake --no_this_opt ,同上
-#   3. 类似flutter run [no-]pub 反向选项
-#
 # bake == (bash)ake == 去Make的bash tool
+# 
+# https://github.com/chen56/bake
+#
 # bake 是个简单的命令行工具，以替代Makefile的子命令功能
 # make工具的主要特点是处理文件依赖进行增量编译，但flutter、golang、java、js项目的build工具
 # 太厉害了，这几年唯一还在用Makefile的理由就是他的子命令机制: "make build"、
@@ -55,6 +52,12 @@ _bake_version=v0.3.20240327
 # 范例可以看实际案例：
 #     - https://github.com/chen56/note/blob/main/bake
 #     - https://github.com/chen56/younpc/blob/main/bake
+# todo
+#   1. 当前 无法判断错误命令：./bake no_this_cmd ,因为不知道这是否是此命令的参数，
+#      需要设置设一个简单的规则：只有叶子命令才能正常执行，这样非叶子命令就不需要有参数
+#   2. 当前 无法判断错误options：./bake --no_this_opt ,同上
+#   3. 类似flutter run [no-]pub 反向选项
+# 
 
 
 # check bake dependencies
