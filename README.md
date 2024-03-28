@@ -57,3 +57,57 @@
 
 
 ```
+
+
+## 范例
+
+首先建立一个空脚本文件，可以叫bake，复制下面代码进去：
+
+```bash
+#!/usr/bin/env bash
+
+# 我们都知道bash没什么有效的保管理工具，但没关系，curl就是包管理工具，在你的脚本复制下面模版
+# 脚本动态安装bake.bash依赖到: vendor/bake.bash
+if ! [[ -f "./vendor/bake.bash" ]]; then
+  mkdir -p "./vendor"
+  curl -L -o  "./vendor/bake.bash" https://github.com/chen56/bake/raw/main/bake.bash ;
+fi
+source "./vendor/bake.bash"
+
+# 定义一些二级命令
+install(){         echo "install deps"; }
+clean(){           echo "clean project"; }
+dev(){             echo "run dev mode"; }
+preview(){         echo "run preview mode"; }
+test(){            echo "test project"; }
+
+# 更深层的命令: `./bake build -h` , `./bake build all`
+build.all(){       echo "build all"; }
+build.macos(){     echo "build macos package"; }
+build.web(){       echo "build web package"; }
+build.android(){   echo "build android package"; }
+build.ios(){       echo "build ios package"; }
+
+# bake走起
+bake.go "$@"
+```
+
+运行`chmod +x ./bake ` 再运行它：`./bake -h` ,你会看到bake已经帮你组织好了子命令，就像docker/git等父子命令一样使用：
+
+```bash
+$ ./bake 
+
+Available Options:
+ --debug                -d  bool   required:[false] debug mode, print more internal info
+ --help                 -h  bool   required:[false] print help, show all commands
+
+Available Commands:
+  build          
+  clean          
+  dev            
+  install        
+  preview        
+  test           
+```
+
+查看更多范例：[examples](./examples/)
