@@ -66,7 +66,7 @@
 ```bash
 #!/usr/bin/env bash
 
-# 我们都知道bash没什么有效的保管理工具，但没关系，curl就是包管理工具，在你的脚本复制下面模版
+# 我们都知道bash没什么有效的包管理工具，但没关系，curl就是包管理工具，在你的脚本复制下面模版
 # 脚本动态安装bake.bash依赖到: vendor/bake.bash
 if ! [[ -f "./vendor/bake.bash" ]]; then
   mkdir -p "./vendor"
