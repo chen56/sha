@@ -7,8 +7,8 @@ set -o pipefail  # default pipeline status==last command status, If set, status=
 
 ########################################################
 # 本测试命令和使用普通bake 应用脚本的模式一模一样
-# 运行测试:   ./bake_test.bash test
-# 列出子命令: ./bake_test.bash -h
+# 运行测试:   ./test.bash test
+# 列出子命令: ./test.bash -h
 ########################################################
 
 
