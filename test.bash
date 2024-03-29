@@ -37,55 +37,29 @@ assert_fail() {
   echo "$@" >&2
 }
 
-@is_escape(){
-  local actual="$1" expected="$2" msg="$3"
-  local escaped; escaped="$(printf '%q' "${actual}")"
-  escaped="${escaped#$\'}" # "$'str'" remove begin "$'" => "str'"
-  escaped="${escaped%\'*}" # "str'" remove end "'"  => "str"
-  if [[ "$escaped" != "$expected" ]] ; then
-    assert_fail "assert is_escape fail: $msg
-     actual       : [$escaped]
-     is not escape: [$expected]"
-     echo "diff------------------------->" >&2
-     diff <(echo -e "$expected") <(echo -e "$actual") >&2
-     return 2
-  fi
-}
-
-# escape to 'xxx' or $'xxx'
-#  https://www.gnu.org/software/bash/manual/bash.html#ANSI_002dC-Quoting
-bake.str.escape() {
-  #  from 2016 bash 4.4
-  #  ${parameter@Q} : quoted in a format that can be reused as input
-  # to 'xxx' or $'xxx'
-  printf '%s\n' "${1@Q}"
-}
-# unescape from 'xxx' or $'xxx'
-bake.str.unescape() {
-  local str=${1}
-  # $'xx' => xx
-  if [[ "$str" == "\$'"*"'" ]]; then
-    str="${str:2:-1}"
-  # 'xx' => xx
-  elif [[ "${str}" == "'"*"'" ]]; then
-    str="${str:1:-1}"
-  fi
-  #  from 2016 bash 4.4
-  #  ${parameter@E} expanded as with the $'...' quoting mechansim
-  printf '%s' "${str@E}"
-}
-
 
 @is(){
   local actual="$1" expected="$2" msg="$3"
   if [[ "$actual" != "$expected" ]] ; then
-    assert_fail "assert is fail: $msg
+    local error_message;
+    error_message=$(cat <<ERROR_END
+     assert is fail: $msg
      actual         : [$actual]
-     is not         : [$expected]
+     expected       : [$expected]
      --------------------------------------------------
-     actual escape  : [$(printf '%q' "$actual")]
-     is not escape  : [$(printf '%q' "$expected")]
-     "
+     actual   escape: [$(printf '%q' "$actual")]
+     expected escape: [$(printf '%q' "$expected")]
+ERROR_END
+)
+    echo "$error_message" >&2
+
+#    assert_fail "assert is fail: $msg
+#     actual         : [$actual]
+#     expected       : [$expected]
+#     --------------------------------------------------
+#     actual   escape: [$(printf '%q' "$actual")]
+#     expected escape: [$(printf '%q' "$expected")]
+#     "
      echo "diff------------------------->" >&2
      diff <(echo -e "$expected") <(echo -e "$actual") >&2
      return 2
@@ -109,19 +83,61 @@ assert(){
   "$op" "$actual" "$expected" "$msg"
 }
 
+
+
+______________________________some_lib(){ echo x;}
+
+# 这里放一些以后可能用到的函数，暂时未实验好
+
+
+# escape to 'xxx' or $'xxx'
+#  https://www.gnu.org/software/bash/manual/bash.html#ANSI_002dC-Quoting
+bake.str_escape() {
+  #  from 2016 bash 4.4
+  #  ${parameter@Q} : quoted in a format that can be reused as input
+  # to 'xxx' or $'xxx'
+  printf '%s\n' "${1@Q}"
+}
+# unescape from 'xxx' or $'xxx'
+bake.str_unescape() {
+  local str=${1}
+  # $'xx' => xx
+  if [[ "$str" == "\$'"*"'" ]]; then
+    str="${str:2:-1}"
+  # 'xx' => xx
+  elif [[ "${str}" == "'"*"'" ]]; then
+    str="${str:1:-1}"
+  fi
+  #  from 2016 bash 4.4
+  #  ${parameter@E} expanded as with the $'...' quoting mechansim
+  printf '%s' "${str@E}"
+}
+
+# todo 模仿http错误
+# 报错后终止程序，类似于其他语言的_throw Excpetion
+# 因set -o errexit 后，程序将在return 1 时退出，
+# 退出前被‘trap bake._on_error ERR’捕获并显示错误堆栈
+# Usage: _throw <http_error_code> <ERROR_MESSAGE>
+_shell_code_to_http_code(){ return $(($1 + 200)) ; }
+_http_code_to_shell_code(){ return $(($1 - 200)) ; }
+_todo_throw(){
+  local http_code="$1";
+  local running_info="${SCRIPT_PATH} -> ${FUNCNAME[1]} ▶︎【$*】"
+  if ! (( http_code >301 && http_code <=555  )); then
+     echo "$running_info "
+     echo "  => error : http_code参数要在301~555之间，模仿http状态码, Usage: _throw <http_code> <ERROR_MESSAGE>"
+     return "$(_http_code_to_shell_code "$http_code")"
+  fi
+  shift
+  echo "$running_info"
+  # set -o errexit 后，程序将退出，退出前被trap bake._on_error Err捕获并显示错误堆栈
+  return "$(_http_code_to_shell_code "$http_code")"
+}
+
 ______________________________study_start(){ echo x;}
 
-# above is test framework
-# $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-# $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-# $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-# below is test case
-
-#######################################################
-## study bash or some other
-#######################################################
 # IFS : https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_06_05
-study.string.escape(){
+tests.study_string_escape(){
   # $'' 语法
   assert $'1\n2' @is '1
 2'
@@ -133,6 +149,8 @@ study.string.escape(){
   x="1
 2"
   assert "$(printf '%q' "$x" )" @is "$'1\n2'"
+
+  assert "$(printf '%q' "$x" )" @is $(echo -n "${x@Q}")
 }
 
 study.read(){
@@ -142,7 +160,7 @@ study.read(){
   done
   assert "$expected" @is '1,2,'
 }
-study.function.return(){
+study.function_return(){
   (
     s(){
       printf "%s" "a b
@@ -199,7 +217,6 @@ study.pipe(){
 
 ____________________________test_start(){ echo x;}
 
-
 tests.api_cmd_parse(){
   bake.opt --cmd "tests.cmd.parse" --name stringOpt --type string
   bake.opt --cmd "tests.cmd.parse" --name boolOpt --type bool
@@ -234,17 +251,17 @@ tests.api_opt_value_parse_and_get_value(){
 
 
 function tests.str_escape() {
-    assert "$(bake.str.escape $'1' )"     @is "'1'"
-    assert "$(bake.str.escape $'1 ')"     @is "'1 '"
-    assert "$(bake.str.escape $'1 2 "')"  @is "'1 2 \"'"
-    assert "$(bake.str.escape $'1 "')"    @is "'1 \"'"
-    assert "$(bake.str.escape $'1 2\n')"  @is "\$'1 2\n'"
+    assert "$(bake.str_escape $'1' )"     @is "'1'"
+    assert "$(bake.str_escape $'1 ')"     @is "'1 '"
+    assert "$(bake.str_escape $'1 2 "')"  @is "'1 2 \"'"
+    assert "$(bake.str_escape $'1 "')"    @is "'1 \"'"
+    assert "$(bake.str_escape $'1 2\n')"  @is "\$'1 2\n'"
 }
 function tests.str_unescape() {
-    assert "$(bake.str.unescape "$(bake.str.escape $'1'    )")"      @is $'1'
-    assert "$(bake.str.unescape "$(bake.str.escape $'1 2'  )")"      @is $'1 2'
-    assert "$(bake.str.unescape "$(bake.str.escape $'1 " ' )")"      @is $'1 " '
-    assert "$(bake.str.unescape "$(bake.str.escape $'1 \n ' )")"     @is $'1 \n '
+    assert "$(bake.str_unescape "$(bake.str_escape $'1'    )")"      @is $'1'
+    assert "$(bake.str_unescape "$(bake.str_escape $'1 2'  )")"      @is $'1 2'
+    assert "$(bake.str_unescape "$(bake.str_escape $'1 " ' )")"      @is $'1 " '
+    assert "$(bake.str_unescape "$(bake.str_escape $'1 \n ' )")"     @is $'1 \n '
 }
 study.declare(){
   (
@@ -393,37 +410,51 @@ tests.str_cutLeft(){
 
 
 tests.cmd_up_chain(){
-  assert "$(bake._cmd_up_chain a.b)" @is_escape "a.b\na\nroot"
+  assert "$(bake._cmd_up_chain a.b)" @is "a.b
+a
+root"
   assert "$(bake._cmd_up_chain 'root')" @is "root"
   assert "$(bake._cmd_up_chain '')" @is "root"
 }
 
 # @fixme 这里有问题，判断错了
 tests.cmd_children(){
-  assert "$(bake._cmd_children test)" @is_escape "tests"
+  assert "$(bake._cmd_children test)" @is "tests"
 }
 
 tests.str_split(){
-  assert "$(bake._str_split "a/b" '/')"  @is_escape "a\nb"
-  assert "$(bake._str_split "a/b/" '/')" @is_escape "a\nb"
+  assert "$(bake._str_split "a/b" '/')"  @is "a
+b"
+  assert "$(bake._str_split "a/b/" '/')" @is "a
+b"
 
   # abstract path
-  assert "$(bake._str_split "/a/b" '/')"  @is_escape "\na\nb"
-  assert "$(bake._str_split "/a/b/" '/')" @is_escape "\na\nb"
+  assert "$(bake._str_split "/a/b" '/')"  @is "
+a
+b"
+  assert "$(bake._str_split "/a/b/" '/')" @is "
+a
+b"
+
 
 
   # 包含破坏性特殊字符
-  assert "$(bake._str_split $'a\nb'  "/" )"  @is_escape "a\nb"
-  assert "$(bake._str_split $'a\n/b' "/" )"  @is_escape "a\n\nb"
-  assert "$(bake._str_split "a
-/b
-" )"  @is_escape "a\n\nb"
+  #  $'string' 形式的字符序列被视为一种特殊类型的单引号。序列扩展为字符串，字符串中的反斜杠转义字符按照 ANSI C 标准指定进行替换。
+  # https://www.gnu.org/software/bash/manual/bash.html#ANSI_002dC-Quoting
+  assert "$(bake._str_split $'a\nb/c'  "/" )"  @is "a
+b
+c"
+  assert "$(bake._str_split $'a\n/b' "/" )"  @is "a
+
+b"
 
   # default delimiter
-  assert "$(bake._str_split "a/b"  )"  @is_escape "a\nb"
+  assert "$(bake._str_split "a/b"  )"  @is "a
+b"
 
   # other delimiter
-  assert "$(bake._str_split "a.b" '.')"  @is_escape "a\nb"
+  assert "$(bake._str_split "a.b" '.')"  @is "a
+b"
 }
 
 tests.cmd_register(){
@@ -433,7 +464,14 @@ tests.cmd_register(){
 }
 
 tests.data_children(){
-  assert "$(bake._data_children "bake.opt/opts")" @is_escape "abbr\ncmd\ndefault\ndesc\nname\nrequired\ntype"
+  assert "$(bake._data_children "bake.opt/opts")" @is "abbr
+cmd
+default
+desc
+name
+required
+type"
+  assert "$(bake._data_children "tests.data_children")" @is ""
 }
 
 tests.opt_cmd_chain_opts(){
@@ -473,34 +511,6 @@ function test(){
       done <<<"$(declare -F | grep "declare -f" | awk {'print $3'})"
 }
 
-
-# todo 模仿http错误
-# 报错后终止程序，类似于其他语言的_throw Excpetion
-# 因set -o errexit 后，程序将在return 1 时退出，
-# 退出前被‘trap bake._on_error ERR’捕获并显示错误堆栈
-# Usage: _throw <http_error_code> <ERROR_MESSAGE>
-_shell_code_to_http_code(){ return $(($1 + 200)) ; }
-_http_code_to_shell_code(){ return $(($1 - 200)) ; }
-_todo_throw(){
-  local http_code="$1";
-  local running_info="${SCRIPT_PATH} -> ${FUNCNAME[1]} ▶︎【$*】"
-  if ! (( http_code >301 && http_code <=555  )); then
-     echo "$running_info "
-     echo "  => error : http_code参数要在301~555之间，模仿http状态码, Usage: _throw <http_code> <ERROR_MESSAGE>"
-     return "$(_http_code_to_shell_code "$http_code")"
-  fi
-  shift
-  echo "$running_info"
-  # set -o errexit 后，程序将退出，退出前被trap bake._on_error Err捕获并显示错误堆栈
-  return "$(_http_code_to_shell_code "$http_code")"
-}
-
-# override test
-#root(){
-#  echo "you can run
-#   ./test/$TEST_FILE test -h       # test subcommands
-#   ./test/$TEST_FILE test          # or run all test in this file"
-#}
 
 bake.cmd --cmd root --desc "
 $(cat <<END_DESC

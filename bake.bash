@@ -169,13 +169,24 @@ TYPE_CMD="type:cmd"
 # bake._path_dirname a/b/c  a/b    => c
 bake._str_cutLeft() { printf "${1#$2}"; }
 
-# Usage: bake.str.split <str> [delimiter:default /]
+# 分割字符串
+# Usage: bake._str_split <str> [delimiter:default /]
+# Example: bake._str_split "a/b/c" "/"
+#  => $'a\nb\nc'    # 会把字符串分割为以换行符间隔的字符串
 bake._str_split() {
-  local str=$1 delimiter=${2:-/}
-  #  # use <() process-substitution
-  #  # don't use <<< "" its add newline
+  #${delimiter:-DEFAULT}  unset 或null 都给默认值
+  # https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
+  local str="$1"
+  local delimiter="${2:-/}"
+
+  #   use <() process-substitution
+  #   or here string  <<< "" its add newline
   local arr
-  readarray -t arr < <(printf '%s' "${str//$delimiter/$'\n'}")
+  # https://helpmanual.io/builtin/readarray/
+  # -d   The first character of delim is used to terminate each input line, rather than newline.
+  # -t   Remove a trailing delim (default newline) from each line read.
+  readarray -t -d "$delimiter" arr <<< "${str}"
+  # same as: for i in  "${arr[@]}"; do echo "$i" done
   printf '%s\n' "${arr[@]}"
 }
 
