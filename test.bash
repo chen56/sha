@@ -7,8 +7,8 @@ set -o pipefail  # default pipeline status==last command status, If set, status=
 
 ########################################################
 # 本测试命令和使用普通bake 应用脚本的模式一模一样
-# 运行测试:   ./test.bash test
-# 列出子命令: ./test.bash -h
+# 运行测试:   ./tests.bash test
+# 列出子命令: ./tests.bash -h
 ########################################################
 
 
@@ -31,25 +31,10 @@ TEST_FILE="$(basename "$TEST_PATH")"
 source "$TEST_DIR/bake.bash"
 
 
-bake.assert.fail() {
-  echo "$@" >&2
-}
+_________________________test_framework_start(){ echo x;}
 
-# 查找出所有test_函数并执行
-# 这种测试有点麻烦，不如bake.test
-function bake.test.all() {
-    while IFS=$'\n' read -r functionName ; do
-      [[ "$functionName" != test.* ]] && continue ;
-      # run test
-      printf "test: %s %-50s" "${TEST_PATH}" "$functionName()"
-      # TIMEFORMAT: https://www.gnu.org/software/bash/manual/html_node/Bash-Variables.html
-      # %R==real %U==user %S==sys %P==(user+sys)/real
-      TIMEFORMAT="real %R user %U sys %S percent %P"
-      (
-        # 隔离test在子shell里，防止环境互相影响
-        time "$functionName" ;
-      )# 2>&1
-    done <<< "$(compgen -A function)"
+assert_fail() {
+  echo "$@" >&2
 }
 
 @is_escape(){
@@ -58,7 +43,7 @@ function bake.test.all() {
   escaped="${escaped#$\'}" # "$'str'" remove begin "$'" => "str'"
   escaped="${escaped%\'*}" # "str'" remove end "'"  => "str"
   if [[ "$escaped" != "$expected" ]] ; then
-    bake.assert.fail "assert is_escape fail: $msg
+    assert_fail "assert is_escape fail: $msg
      actual       : [$escaped]
      is not escape: [$expected]"
      echo "diff------------------------->" >&2
@@ -94,7 +79,7 @@ bake.str.unescape() {
 @is(){
   local actual="$1" expected="$2" msg="$3"
   if [[ "$actual" != "$expected" ]] ; then
-    bake.assert.fail "assert is fail: $msg
+    assert_fail "assert is fail: $msg
      actual         : [$actual]
      is not         : [$expected]
      --------------------------------------------------
@@ -109,7 +94,7 @@ bake.str.unescape() {
 @contains(){
   local actual="$1" expected="$2" msg="$3"
   if [[ "$actual" != *"$expected"* ]] ; then
-    bake.assert.fail "assert fail: $msg
+    assert_fail "assert fail: $msg
      actual         : [$actual]
      is not contains: [$expected]"
      return 2
@@ -121,8 +106,10 @@ bake.str.unescape() {
 # Sample: assert $(( 1+1 )) @is "2"
 assert(){
   local actual="$1" op="$2" expected="$3" msg="$4"
-  "$2" "$actual" "$3" "$4"
+  "$op" "$actual" "$expected" "$msg"
 }
+
+______________________________study_start(){ echo x;}
 
 # above is test framework
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -147,6 +134,7 @@ study.string.escape(){
 2"
   assert "$(printf '%q' "$x" )" @is "$'1\n2'"
 }
+
 study.read(){
   local expected="";
   echo -e "1\n2" | while read -r x ; do
@@ -209,22 +197,56 @@ study.pipe(){
   fi
 }
 
+____________________________test_start(){ echo x;}
 
-function test.bake.str.escape() {
-    assert "$(bake.str.escape $'1' )"     @is "'1'"
-    assert "$(bake.str.escape $'1 ')"    @is "'1 '"
-    assert "$(bake.str.escape $'1 2 "')" @is "'1 2 \"'"
-    assert "$(bake.str.escape $'1 "')"   @is "'1 \"'"
-    assert "$(bake.str.escape $'1 2\n')" @is "\$'1 2\n'"
 
+tests.api_cmd_parse(){
+  bake.opt --cmd "tests.cmd.parse" --name stringOpt --type string
+  bake.opt --cmd "tests.cmd.parse" --name boolOpt --type bool
+  bake.opt --cmd "tests.cmd.parse" --name listOpt --type list
+
+  assert "$(bake.parse "tests.cmd.parse" --boolOpt )" @is 'declare boolOpt="true";
+declare optShift=1;'
+  assert "$(bake.parse "tests.cmd.parse" --stringOpt "1 2" )" @is 'declare stringOpt="1 2";
+declare optShift=2;'
+
+  # list type option
+  assert "$(bake.parse "tests.cmd.parse" --listOpt "a 1" --listOpt "b 2" )" @is 'declare listOpt=([0]="a 1" [1]="b 2");
+declare optShift=4;'
+
+  # no exists cmd
+  assert "$(bake.parse "no.exists.func" --unknow_opt bool)" @is "declare optShift=0;"
+
+  # no exists option
+  assert "$(bake.parse "tests.cmd.parse" --no_exists_opt)" @is "declare optShift=0;"
 }
-function test.bake.str.unescape() {
+
+tests.api_opt(){
+  bake.opt --cmd "tests.opt.add" --name boolopt --type bool
+}
+
+tests.api_opt_value_parse_and_get_value(){
+  bake.opt --cmd "tests.opt.add" --name xxx --type string
+  echo $(bake.parse "tests.opt.add" --xxx chen)
+  eval "$(bake.parse "tests.opt.add" --xxx chen)"
+  assert "$xxx" @is "chen"
+}
+
+
+function tests.str_escape() {
+    assert "$(bake.str.escape $'1' )"     @is "'1'"
+    assert "$(bake.str.escape $'1 ')"     @is "'1 '"
+    assert "$(bake.str.escape $'1 2 "')"  @is "'1 2 \"'"
+    assert "$(bake.str.escape $'1 "')"    @is "'1 \"'"
+    assert "$(bake.str.escape $'1 2\n')"  @is "\$'1 2\n'"
+}
+function tests.str_unescape() {
     assert "$(bake.str.unescape "$(bake.str.escape $'1'    )")"      @is $'1'
     assert "$(bake.str.unescape "$(bake.str.escape $'1 2'  )")"      @is $'1 2'
     assert "$(bake.str.unescape "$(bake.str.escape $'1 " ' )")"      @is $'1 " '
     assert "$(bake.str.unescape "$(bake.str.escape $'1 \n ' )")"     @is $'1 \n '
 }
-test.study.declare(){
+study.declare(){
   (
     declare a=1 b=2
     assert "$a" @is "1"
@@ -274,7 +296,7 @@ b=$'3 4'")
 
 }
 # eval 用起来比declare 省心多了
-test.study.eval(){
+study.eval(){
   (
     eval "a=$'1 2' b=$'3 4'"
     assert "$a" @is "1 2"
@@ -327,11 +349,11 @@ line2" x)
 ## bake test case
 #######################################################
 
-test.assert_sample(){
+tests.assert_sample(){
   assert $((1+1)) @is 2
 }
 
-test.bake._path_dirname(){
+tests.path_dirname(){
   assert "$(bake._path_dirname a/b/c '/')" @is "a/b"
   assert "$(bake._path_dirname a     '/')" @is ""
   assert "$(bake._path_dirname ""    '/')" @is ""
@@ -341,7 +363,7 @@ test.bake._path_dirname(){
   assert "$(bake._path_dirname /a     '/')" @is ""
   assert "$(bake._path_dirname /      '/')" @is ""
 }
-test.bake._path_first(){
+tests.path_first(){
   assert "$(bake._path_first a/b/c  '/')" @is "a"
   assert "$(bake._path_first a      '/')" @is "a"
   assert "$(bake._path_first ''     '/')" @is ""
@@ -349,7 +371,7 @@ test.bake._path_first(){
   assert "$(bake._path_first /a/b/c '/')" @is "/a"
 }
 
-test.bake._path_basename(){
+tests.path_basename(){
   assert "$(bake._path_basename a/b/c '/')" @is "c"
   assert "$(bake._path_basename a     '/')" @is "a"
   assert "$(bake._path_basename ""    '/')" @is ""
@@ -359,7 +381,7 @@ test.bake._path_basename(){
   assert "$(bake._path_basename "/"  '/')"  @is ""
 }
 
-test.bake._str_cutLeft(){
+tests.str_cutLeft(){
   assert "$(bake._str_cutLeft a/b/c 'a/b/')" @is "c"
   assert "$(bake._str_cutLeft a/b/c '')" @is "a/b/c"
 
@@ -370,16 +392,18 @@ test.bake._str_cutLeft(){
 }
 
 
-test.bake._cmd_up_chain(){
+tests.cmd_up_chain(){
   assert "$(bake._cmd_up_chain a.b)" @is_escape "a.b\na\nroot"
   assert "$(bake._cmd_up_chain 'root')" @is "root"
   assert "$(bake._cmd_up_chain '')" @is "root"
 }
-test.bake._cmd_children(){
-  assert "$(bake._cmd_children bake.test)" @is_escape "all"
+
+# @fixme 这里有问题，判断错了
+tests.cmd_children(){
+  assert "$(bake._cmd_children test)" @is_escape "tests"
 }
 
-test.bake.str.split(){
+tests.str_split(){
   assert "$(bake._str_split "a/b" '/')"  @is_escape "a\nb"
   assert "$(bake._str_split "a/b/" '/')" @is_escape "a\nb"
 
@@ -402,16 +426,17 @@ test.bake.str.split(){
   assert "$(bake._str_split "a.b" '.')"  @is_escape "a\nb"
 }
 
-test.bake._cmd_register(){
+tests.cmd_register(){
   bake._cmd_register
-  assert "$(bake.info | grep test.bake._cmd_register)" \
-    @contains "test.bake._cmd_register"
+  assert "$(bake.info | grep tests.cmd_register)" \
+    @contains "tests.cmd_register"
 }
-test.data.children(){
+
+tests.data_children(){
   assert "$(bake._data_children "bake.opt/opts")" @is_escape "abbr\ncmd\ndefault\ndesc\nname\nrequired\ntype"
 }
 
-test.bake._opt_cmd_chain_opts(){
+tests.opt_cmd_chain_opts(){
   assert "$(bake._opt_cmd_chain_opts "root")" @is \
 "root/opts/debug
 root/opts/help"
@@ -429,49 +454,66 @@ root/opts/debug
 root/opts/help"
 }
 
-test.cmd.parse(){
-  bake.opt --cmd "test.cmd.parse" --name stringOpt --type string
-  bake.opt --cmd "test.cmd.parse" --name boolOpt --type bool
-  bake.opt --cmd "test.cmd.parse" --name listOpt --type list
 
-  assert "$(bake.parse "test.cmd.parse" --boolOpt )" @is 'declare boolOpt="true";
-declare optShift=1;'
-  assert "$(bake.parse "test.cmd.parse" --stringOpt "1 2" )" @is 'declare stringOpt="1 2";
-declare optShift=2;'
-
-  # list type option
-  assert "$(bake.parse "test.cmd.parse" --listOpt "a 1" --listOpt "b 2" )" @is 'declare listOpt=([0]="a 1" [1]="b 2");
-declare optShift=4;'
-
-  # no exists cmd
-  assert "$(bake.parse "no.exists.func" --unknow_opt bool)" @is "declare optShift=0;"
-
-  # no exists option
-  assert "$(bake.parse "test.cmd.parse" --no_exists_opt)" @is "declare optShift=0;"
-}
-
-test.bake.opt(){
-  bake.opt --cmd "test.opt.add" --name boolopt --type bool
-}
-
-test.bake.opt.value.parse_and_get_value(){
-  bake.opt --cmd "test.opt.add" --name xxx --type string
-  echo $(bake.parse "test.opt.add" --xxx chen)
-  eval "$(bake.parse "test.opt.add" --xxx chen)"
-  assert "$xxx" @is "chen"
-}
-
-
+# 查找出所有"tests."开头的函数并执行
+# 这种测试有点麻烦，不如bake.test
 function test(){
-  bake.test.all
+      while IFS=$'\n' read -r functionName ; do
+        [[ "$functionName" != tests.* ]] && continue ;
+        # run test
+        printf "test: %s %-50s" "${TEST_PATH}" "$functionName()"
+        # TIMEFORMAT: https://www.gnu.org/software/bash/manual/html_node/Bash-Variables.html
+        # %R==real %U==user %S==sys %P==(user+sys)/real
+        TIMEFORMAT="real %R user %U sys %S percent %P"
+        (
+          # 隔离test在子shell里，防止环境互相影响
+          time "$functionName" ;
+        )# 2>&1
+  #    done <<< "$(compgen -A function)" # 还是declare -F 再过滤保险
+      done <<<"$(declare -F | grep "declare -f" | awk {'print $3'})"
+}
+
+
+# todo 模仿http错误
+# 报错后终止程序，类似于其他语言的_throw Excpetion
+# 因set -o errexit 后，程序将在return 1 时退出，
+# 退出前被‘trap bake._on_error ERR’捕获并显示错误堆栈
+# Usage: _throw <http_error_code> <ERROR_MESSAGE>
+_shell_code_to_http_code(){ return $(($1 + 200)) ; }
+_http_code_to_shell_code(){ return $(($1 - 200)) ; }
+_todo_throw(){
+  local http_code="$1";
+  local running_info="${SCRIPT_PATH} -> ${FUNCNAME[1]} ▶︎【$*】"
+  if ! (( http_code >301 && http_code <=555  )); then
+     echo "$running_info "
+     echo "  => error : http_code参数要在301~555之间，模仿http状态码, Usage: _throw <http_code> <ERROR_MESSAGE>"
+     return "$(_http_code_to_shell_code "$http_code")"
+  fi
+  shift
+  echo "$running_info"
+  # set -o errexit 后，程序将退出，退出前被trap bake._on_error Err捕获并显示错误堆栈
+  return "$(_http_code_to_shell_code "$http_code")"
 }
 
 # override test
-root(){
-  echo "you can run
-   ./test/$TEST_FILE test -h       # test subcommands
-   ./test/$TEST_FILE test          # or run all test in this file"
-}
+#root(){
+#  echo "you can run
+#   ./test/$TEST_FILE test -h       # test subcommands
+#   ./test/$TEST_FILE test          # or run all test in this file"
+#}
+
+bake.cmd --cmd root --desc "
+$(cat <<END_DESC
+
+Examples:
+./$TEST_FILE test -h       # test list
+./$TEST_FILE all           # or run all test in this file"
+
+
+END_DESC
+)
+"
+
 
 
 bake.go "$@"

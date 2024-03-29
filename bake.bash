@@ -129,7 +129,6 @@ bake._throw(){
   return 1
 }
 bake._error() {
-  if [[ "${_LOG_LEVELS[@]:0}" != *"$LOG"* ]]; then return 0; fi
   bake._log "$@"
 }
 bake._info() {
@@ -143,7 +142,6 @@ bake._debug() {
 bake._log(){
   local level;
   level=$1
-  if [[ "${_LOG_LEVELS[@]:2}" != *"$LOG"* ]]; then return 0; fi
   echo -e "$level $(date "+%F %T") $(bake._pwd)\$ ${FUNCNAME[1]}() : $*" >&2
 }
 
