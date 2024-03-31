@@ -62,6 +62,8 @@ ERROR_END
 #     "
      echo "diff------------------------->" >&2
      diff <(echo -e "$expected") <(echo -e "$actual") >&2
+
+     # todo 应该自己打印堆栈，指出出错的test，这需要定制返回值为4xx
      return 2
   fi
 }
