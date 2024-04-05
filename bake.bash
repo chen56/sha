@@ -365,14 +365,12 @@ bake._show_cmd_help() {
 
   shift
 
-  eval "$(bake.parse "${FUNCNAME[0]}" "$@")"
-
   echo
 
   if [[ "$cmd" == "root" ]] ;then
-      echo "Running:【: $(bake._pwd)/$BAKE_FILE $@】"
+      echo "Running:【: $(bake._pwd)/$BAKE_FILE $*】"
   else
-      echo "Running:【$(bake._pwd)/$BAKE_FILE $cmd $@】"
+      echo "Running:【$(bake._pwd)/$BAKE_FILE $cmd $*】"
   fi
 
   echo
@@ -487,17 +485,17 @@ bake._opt_internal_add bake.opt "abbr"     "string" "false" ""      ""      "opt
 bake._opt_internal_add bake.opt "default"  "string" "false" ""      ""      "option abbr"
 bake._opt_internal_add bake.opt "desc"  "string" "false" ""      ""      "option desc"
 bake.opt() {
-  eval "$(bake.parse ""${FUNCNAME[0]}"" "$@")"
-  if [[ "$name" == "" ]]; then
-    echo "error: option [--name] required " >&2 && return 1
+  eval "$(bake.parse "${FUNCNAME[0]}" "$@")"
+  if [[ "$__name" == "" ]]; then
+    echo "error: option required [--name]" >&2 && return 1
   fi
-  if [[ "$type" == "" ]]; then
-    echo "error: option [--type] required " >&2 && return 1
+  if [[ "$__type" == "" ]]; then
+    echo "error: option required [--type]" >&2 && return 1
   fi
-  if [[ "$type" != "bool" && "$type" != "string" && "$type" != "list" ]]; then
+  if [[ "$__type" != "bool" && "$__type" != "string" && "$__type" != "list" ]]; then
     echo "error: option [--type] must in [bool|string|list] " >&2 && return 1
   fi
-  bake._opt_internal_add "$cmd" "$name" "$type" "${required:-false}" "$default" "$abbr" "$desc"
+  bake._opt_internal_add "$__cmd" "$__name" "$__type" "${__required:-false}" "$__default" "$__abbr" "$__desc"
 }
 
 # bake.opt  (public api)
@@ -517,10 +515,11 @@ bake.opt() {
 #      ./bake build --target "macos" --is_zip --host host1 --host2
 #  调用结果是'bake.parse "${FUNCNAME[0]}" "$@"'将生成如下脚本:
 #  ---------------------------------------------------------
-#  declare is_zip=true;
-#  declare target="macos";
-#  declare hosts=("host1" "host2");
-#  declare optShift=7;
+#  declare __is_zip=true
+#  declare __target="macos"
+#  declare __hosts=("host1" "host2")
+#  declare __option_count=7
+#  shift 6
 #  ---------------------------------------------------------
 # eval后，就可以直接使用变量了, 在函数中declare，不带-g参数默认为local变量，不会影响全局环境。
 #
@@ -561,8 +560,8 @@ bake.parse() {
     # if next arg not a opt , parsing complete;
     if [[ "${optPath}" == "" ]]; then break; fi
 
-    # _opt_value_ prefix : avoid conflicts in the current context
-    optVars["$optPath"]="_opt_value_$(bake._path_basename "$optPath")"
+    # __ prefix : avoid conflicts
+    optVars["$optPath"]="__$(bake._path_basename "$optPath")"
     declare "${optVars["$optPath"]}"
     # reference to the current dynamic  opt variable
     declare -n currentOptValue=${optVars["$optPath"]}
@@ -589,16 +588,10 @@ bake.parse() {
       ;;
     esac
   done
-
-  # todo 这里是不是可以简化为只用循环：'declare -p 变量名'，由declare完成变量定义的文本转换工作，不要自己弄了？
-  local resultStr
   for optPath in "${!optVars[@]}"; do
-    local declareStr
-    declareStr=$(declare -p "${optVars["$optPath"]}")
-    resultStr+="${declareStr/#*_opt_value_/declare };\n"
+    declare -p "${optVars["$optPath"]}"
   done
-  resultStr+="declare optShift=$((totalArgs - $#));\n"
-  echo -e "$resultStr" # echo -e : unescapes backslash
+  echo "shift $(( totalArgs - $# ))"
 }
 
 
@@ -610,17 +603,17 @@ bake.parse() {
 #   bake.cmd --cmd root \
 #             --desc "flutter-note cli."
 # 这样就可以用'./your_script -h' 查看根帮助了
-bake.opt --cmd "bake.cmd" --name "cmd"         --type string --desc "cmd, function name"
-bake.opt --cmd "bake.cmd" --name "desc"     --type string --desc "cmd desc, show in help"
+bake.opt --name "cmd"  --cmd "bake.cmd" --type string --desc "cmd, function name"
+bake.opt --name "desc" --cmd "bake.cmd" --type string --desc "cmd desc, show in help"
 bake.cmd() {
   # 模版代码，放到每个需要使用option的函数中，然后就可以使用option了
   eval "$(bake.parse "${FUNCNAME[0]}" "$@")"
 
-  if [[ "$cmd" == "" ]]; then
+  if [[ "$__cmd" == "" ]]; then
     echo "error: bake.cmd [--cmd] required " >&2
     return 1
   fi
-  _bake_data["$cmd/desc"]="$desc"
+  _bake_data["$__cmd/desc"]="$__desc"
 }
 
 

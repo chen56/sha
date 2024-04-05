@@ -224,31 +224,41 @@ tests.api_cmd_parse(){
   bake.opt --cmd "tests.cmd.parse" --name boolOpt --type bool
   bake.opt --cmd "tests.cmd.parse" --name listOpt --type list
 
-  assert "$(bake.parse "tests.cmd.parse" --boolOpt )" @is 'declare boolOpt="true";
-declare optShift=1;'
-  assert "$(bake.parse "tests.cmd.parse" --stringOpt "1 2" )" @is 'declare stringOpt="1 2";
-declare optShift=2;'
+  assert "$(bake.parse "tests.cmd.parse" --boolOpt )" @is 'declare -- __boolOpt="true"
+shift 1'
+  assert "$(bake.parse "tests.cmd.parse" --stringOpt "1 2" )" @is 'declare -- __stringOpt="1 2"
+shift 2'
 
   # list type option
-  assert "$(bake.parse "tests.cmd.parse" --listOpt "a 1" --listOpt "b 2" )" @is 'declare listOpt=([0]="a 1" [1]="b 2");
-declare optShift=4;'
+  assert "$(bake.parse "tests.cmd.parse" --listOpt "a 1" --listOpt "b 2" )" @is 'declare -a __listOpt=([0]="a 1" [1]="b 2")
+shift 4'
 
   # no exists cmd
-  assert "$(bake.parse "no.exists.func" --unknow_opt bool)" @is "declare optShift=0;"
+  assert "$(bake.parse "no.exists.func" --unknow_opt bool)" @is "shift 0"
 
   # no exists option
-  assert "$(bake.parse "tests.cmd.parse" --no_exists_opt)" @is "declare optShift=0;"
+  assert "$(bake.parse "tests.cmd.parse" --no_exists_opt)" @is "shift 0"
 }
 
 tests.api_opt(){
   bake.opt --cmd "tests.opt.add" --name boolopt --type bool
 }
 
+tests.sss(){
+  bake.opt --cmd "tests.sss" --name xxx --type string
+  # echo $(bake.parse "tests.sss" --xxx chen)
+  # eval "$(bake.parse "tests.sss" --xxx chen)"
+  # assert "$xxx" @is "chen"
+}
+
 tests.api_opt_value_parse_and_get_value(){
-  bake.opt --cmd "tests.opt.add" --name xxx --type string
-  echo $(bake.parse "tests.opt.add" --xxx chen)
-  eval "$(bake.parse "tests.opt.add" --xxx chen)"
-  assert "$xxx" @is "chen"
+  bake.opt --cmd "tests.api_opt_value_parse_and_get_value" --name xxx --type string  
+  
+  # 模拟shell参数
+  set -- --xxx chen
+  bake.parse "tests.api_opt_value_parse_and_get_value" "$@"
+  eval "$(bake.parse "tests.api_opt_value_parse_and_get_value" "$@")"
+  assert "$__xxx" @is "chen"
 }
 
 
@@ -527,7 +537,8 @@ END_DESC
 "
 
 temp() {
-  echo "__help: ${sss}"
+  eval 'shift 2'
+  echo "__help: $@"
 }
 
 
