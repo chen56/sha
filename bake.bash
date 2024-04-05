@@ -427,6 +427,46 @@ Available Commands:"
 }
 
 
+_bake_go_parse() {
+  # parse cmd :
+  #   ./bake pub get -v -b
+  #     -> { cmd:"pub.get", args:"-v -b" }
+  #   ./bake -h
+  #     -> { cmd:"", args:"-h" }
+  local cmd nextCmd arg
+  for arg in "$@"; do
+    nextCmd="$([[ "$cmd" == "" ]] && echo "$arg" || echo "$cmd.$arg")"
+    if [[ "${_bake_cmds["$nextCmd"]}" == "" ]]; then break; fi
+    cmd="$nextCmd"
+    shift
+  done
+
+  if [[ "$cmd" == "" ]]; then cmd="root"; fi
+  eval "$(bake.parse "$cmd" "$@")"
+
+  if [[ "$help" == "true" ]]; then
+    echo bake._show_cmd_help "$cmd" "$@"
+    return 0
+  fi
+
+  #  if fileExist then show help
+  if ! declare -F "$cmd" | grep "$cmd" &>/dev/null  2>&1; then
+    if [[ "${_bake_cmds["$cmd"]}" == "PARENT_CMD_NOT_FUNC" ]]; then
+      echo bake._show_cmd_help "$cmd" "$@"
+      return 0
+    fi
+    bake._throw "Error: 404 ,cmd '${cmd}' not define, please define cmd function '${cmd}()'"
+  fi
+
+  echo "$cmd" "$@"
+}
+
+##########################################
+# bake api function
+# 下面都是公开函数
+##########################################
+
+
 # 为cmd配置参数(public api)
 # Examples:
 #   bake.opt --cmd "build" --name "is_zip" --type bool --required --abbr z --default true --desc "is_zip, build项目时是否压缩"
@@ -628,40 +668,18 @@ EOF
 # 入口 (public api)
 bake.go() {
   # init register all cmd
-
   bake._cmd_register
 
-  # parse cmd :
-  #   ./bake pub get -v -b
-  #     -> { cmd:"pub.get", args:"-v -b" }
-  #   ./bake -h
-  #     -> { cmd:"", args:"-h" }
-  local cmd nextCmd arg
-  for arg in "$@"; do
-    nextCmd="$([[ "$cmd" == "" ]] && echo "$arg" || echo "$cmd.$arg")"
-    if [[ "${_bake_cmds["$nextCmd"]}" == "" ]]; then break; fi
-    cmd="$nextCmd"
-    shift
-  done
-
-  if [[ "$cmd" == "" ]]; then cmd="root"; fi
-  eval "$(bake.parse "$cmd" "$@")"
-
-  if [[ "$help" == "true" ]]; then
-    bake._show_cmd_help "$cmd" "$@"
-    return 0
-  fi
-
-  #  if fileExist then show help
-  if ! declare -F "$cmd" | grep "$cmd" &>/dev/null  2>&1; then
-    if [[ "${_bake_cmds["$cmd"]}" == "PARENT_CMD_NOT_FUNC" ]]; then
-      bake._show_cmd_help "$cmd" "$@"
-      return 0
-    fi
-    bake._throw "Error: 404 ,cmd '${cmd}' not define, please define cmd function '${cmd}()'"
-  fi
-
-  $cmd "$@"
+  # ⚠️ 注意！本函数把外部参数作为命令执行，所以如果有变量一定要__xxxx__格式，避免影响外部程序
+  # ⚠️ 高危场景：在a命令内执行传来的参数是高危操作，假设 :
+  #   1> a(){  local x="a()inner"; $@ ; }
+  #   2> b(){  echo "b()这里你猜能看到a的内部变量吗：x: $x" ; }  
+  #   3> a b
+  #      打印结果 => 这里你猜能看到a的内部变量吗：x: a()inner
+  # 
+  # 行3"a b",将使a函数在其内部执行b函数，这是高危操作，因为a函数的上下文暴露在b函数里，local也不例外
+  # 所以我们用另一个函数_bake_go_parse隔离环境
+  eval "$(_bake_go_parse "$@")"
 }
 
 # root is special cmd(you can define it), bake add some common options to this cmd, you can add yourself options

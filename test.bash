@@ -526,6 +526,9 @@ END_DESC
 )
 "
 
+temp() {
+  echo "__help: ${sss}"
+}
 
 
 bake.go "$@"
