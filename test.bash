@@ -220,35 +220,26 @@ study.pipe(){
 ____________________________test_start(){ echo x;}
 
 tests.api_cmd_parse(){
-  bake.opt --cmd "tests.cmd.parse" --name stringOpt --type string
-  bake.opt --cmd "tests.cmd.parse" --name boolOpt --type bool
-  bake.opt --cmd "tests.cmd.parse" --name listOpt --type list
+  bake.opt --cmd "tests.api_cmd_parse" --name stringOpt --type string
+  bake.opt --cmd "tests.api_cmd_parse" --name boolOpt --type bool
+  bake.opt --cmd "tests.api_cmd_parse" --name listOpt --type list
 
-  assert "$(bake.parse "tests.cmd.parse" --boolOpt )" @is 'declare -- __boolOpt="true"
+  assert "$(bake.parse  --boolOpt )" @is 'declare -- __boolOpt="true"
 shift 1'
-  assert "$(bake.parse "tests.cmd.parse" --stringOpt "1 2" )" @is 'declare -- __stringOpt="1 2"
+  assert "$(bake.parse  --stringOpt "1 2" )" @is 'declare -- __stringOpt="1 2"
 shift 2'
 
   # list type option
-  assert "$(bake.parse "tests.cmd.parse" --listOpt "a 1" --listOpt "b 2" )" @is 'declare -a __listOpt=([0]="a 1" [1]="b 2")
+  assert "$(bake.parse  --listOpt "a 1" --listOpt "b 2" )" @is 'declare -a __listOpt=([0]="a 1" [1]="b 2")
 shift 4'
 
-  # no exists cmd
-  assert "$(bake.parse "no.exists.func" --unknow_opt bool)" @is "shift 0"
 
   # no exists option
-  assert "$(bake.parse "tests.cmd.parse" --no_exists_opt)" @is "shift 0"
+  assert "$(bake.parse   --no_exists_opt)" @is "shift 0"
 }
 
 tests.api_opt(){
   bake.opt --cmd "tests.opt.add" --name boolopt --type bool
-}
-
-tests.sss(){
-  bake.opt --cmd "tests.sss" --name xxx --type string
-  # echo $(bake.parse "tests.sss" --xxx chen)
-  # eval "$(bake.parse "tests.sss" --xxx chen)"
-  # assert "$xxx" @is "chen"
 }
 
 tests.api_opt_value_parse_and_get_value(){
@@ -256,8 +247,8 @@ tests.api_opt_value_parse_and_get_value(){
   
   # 模拟shell参数
   set -- --xxx chen
-  bake.parse "tests.api_opt_value_parse_and_get_value" "$@"
-  eval "$(bake.parse "tests.api_opt_value_parse_and_get_value" "$@")"
+  bake.parse "$@"
+  eval "$(bake.parse  "$@")"
   assert "$__xxx" @is "chen"
 }
 
