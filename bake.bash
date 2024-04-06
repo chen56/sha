@@ -5,9 +5,9 @@ set -o functrace # -T If set, any trap on DEBUG and RETURN are inherited by shel
 set -o pipefail  # default pipeline status==last command status, If set, status=any command fail
 #set -o nounset # -u: don't use it ,it is crazy, 1.bash version is diff Behavior 2.we need like this: ${arr[@]+"${arr[@]}"}
 
-_bake_version=v0.3.20240327
+_bake_version=v0.3.20240406
 
-# v0.2.20230528 - It can run normally on macos
+# It can run normally on macos
 # bake == (bash)ake == 去Make的bash tool
 # 
 # https://github.com/chen56/bake
