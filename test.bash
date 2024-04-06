@@ -454,9 +454,9 @@ root"
   assert "$(bake._cmd_up_chain '')" @is "root"
 }
 
-# BUG 这里有问题，判断错了,导致后缀被认为是前缀
 tests.cmd_children(){
-  assert "$(bake._cmd_children test)" @is "tests"
+  assert "$(bake._cmd_children test)" @is ""
+  assert "$(bake._cmd_children tests)" @contains "cmd_children"
 }
 
 tests.str_split(){
@@ -500,17 +500,6 @@ tests.cmd_register(){
     @contains "tests.cmd_register"
 }
 
-tests.data_children(){
-  assert "$(bake._data_children "bake.opt/opts")" @is "abbr
-cmd
-default
-desc
-name
-required
-type"
-  assert "$(bake._data_children "tests.data_children")" @is ""
-}
-
 tests.opt_cmd_chain_opts(){
   assert "$(bake._opt_cmd_chain_opts "root")" @is \
 "root/opts/debug
@@ -532,6 +521,7 @@ root/opts/interactive"
 }
 
 
+# TODO bake._cmd_children 命令可以改造为既可以输出全称也可以输出短名，还可以设置depth展示层级
 # 查找出所有"tests."开头的函数并执行
 # 这种测试有点麻烦，不如bake.test
 function test(){

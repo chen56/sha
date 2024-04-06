@@ -222,35 +222,41 @@ bake._path_basename() {
   printf "${pathLikeStr##*$delimiter}"
 }
 
-# Usage: bake._data_children <dataPath>
-#   return <dataPath> children name
-bake._data_children() {
-  local path="$1"
-  # ${!_bake_data[@]}: get all array keys
-  local key
-  for key in "${!_bake_data[@]}"; do
-    # if start $path
-    if [[ "$key" == "$path"* ]]; then
-      # https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
-      # remove prefix : key:build/opts/dir/type/x leftPathToBeCut:build/opts => dir/type/x
-      local child=$(bake._str_cutLeft "$key" "$path/")
-      # remove suffix:  dir/type/x => dir
-      child=$(bake._path_first "$child" "/")
-      printf '%s\n' "$child"
-    fi
-  done | sort -u
-}
-
+# Samples:
+#    bake._cmd_children       
+#            => list root children
+#    bake._cmd_children tests      
+#            => list test children
 bake._cmd_children() (
-  local path="$1"
+  local path="${1:-root}" # default arg is root
+
+  # ./bake bake info列出命令注册表，_bake_cmds数组长这样：
+  # cmd  - bake.opt                                 = bake.opt
+  # cmd  - bake.parse                               = bake.parse
+  # cmd  - bake.str_escape                          = bake.str_escape
+  # cmd  - bake.str_unescape                        = bake.str_unescape
+  # cmd  - bake.version                             = bake.version
+  # cmd  - root                                     = PARENT_CMD_NOT_FUNC
+  # cmd  - study                                    = PARENT_CMD_NOT_FUNC
+  # cmd  - study.array                              = study.array
+  # cmd  - study.declare                            = study.declare
+
+  # 单独列出root的子命令
   if [[ "$path" == root ]]; then
-    path=""
+    for full_name in "${!_bake_cmds[@]}"; do
+      # 不包含'.'的命令是一级命令，即root的子命令
+      [[ $full_name == *"."*  ]]  && continue;
+      [[ $full_name == "root"  ]] && continue;
+
+      echo "$full_name"
+    done
+    return 0
   fi
 
   # ${!_bake_data[@]}: get all array keys
   for key in "${!_bake_cmds[@]}"; do
     # if start $path
-    if [[ "$key" == "$path"* && "$key" != "$path" && "$key" != "root" ]]; then
+    if [[ "$key" == "$path."* && "$key" != "$path" && "$key" != "root" ]]; then
       # https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
       # remove prefix : key:a.b.c leftPathToBeCut:a => b.c
       child=$(bake._str_cutLeft "$key" "$path.")
@@ -258,7 +264,7 @@ bake._cmd_children() (
       child=$(bake._path_first "$child" ".")
       printf '%s\n' "$child"
     fi
-  done | sort -u
+  done # | sort -u
 )
 
 # Usage: bake._cmd_up_chain <cmd>
@@ -626,13 +632,13 @@ EOF
   echo '## _bake_cmds'
   echo
   for key in "${!_bake_cmds[@]}"; do
-    printf "cmd  - %-40s = %q\n" "$key" "${_bake_cmds["$key"]:0:100}"
+    printf "%-60s = %q\n" "_bake_cmds[$key]" "${_bake_cmds["$key"]:0:100}"
   done | sort
   echo
   echo '## _bake_data'
   echo
   for key in "${!_bake_data[@]}"; do
-    printf "data - %-40s = %q\n" "$key" "${_bake_data["$key"]:0:100}"
+    printf "%-60s = %q\n" "_bake_data[$key]" "${_bake_data["$key"]:0:100}"
   done | sort
   echo
   echo '## options'
