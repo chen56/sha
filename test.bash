@@ -262,8 +262,8 @@ tests.api_opt_value_parse_and_get_value(){
   
   # 模拟shell参数
   set -- --xxx chen
-  bake.parse "$@"
-  eval "$(bake.parse  "$@")"
+  eval "$(bake.parse  "$@")" 
+  # shellcheck disable=SC2154
   assert "$__xxx" @is "chen"
 }
 

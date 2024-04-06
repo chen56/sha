@@ -241,13 +241,6 @@ bake._data_children() {
   done | sort -u
 }
 
-bake._cmd_childrenNameMaxLength() {
-  local cmd="$1" maxLengthOfCmd=0
-  for child in $(bake._cmd_children "$cmd"); do
-    if ((${#child} > maxLengthOfCmd)); then maxLengthOfCmd=${#child}; fi
-  done
-  printf "$maxLengthOfCmd"
-}
 bake._cmd_children() (
   local path="$1"
   if [[ "$path" == root ]]; then
@@ -395,9 +388,6 @@ bake._show_cmd_help() {
 
   echo "
 Available Commands:"
-  local maxLengthOfCmd
-  maxLengthOfCmd="$(bake._cmd_childrenNameMaxLength "$cmd")"
-
   for subCmd in $(bake._cmd_children "$cmd"); do
 
     # only show public cmd if not verbose
@@ -414,6 +404,11 @@ Available Commands:"
     local desc="${_bake_data["$subCmdPath/desc"]}"
     desc="$(echo -e "$desc" | head -n 1 )" #  backslash escapes interpretation
 
+
+    local maxLengthOfCmd=0
+    for child in $(bake._cmd_children "$cmd"); do
+      if ((${#child} > maxLengthOfCmd)); then maxLengthOfCmd=${#child}; fi
+    done
     printf "  %-$((maxLengthOfCmd))s  ${desc}\n" "${subCmd}"
   done
 }
