@@ -39,32 +39,40 @@ assert_fail() {
 
 
 @is(){
+
+
   local actual="$1" expected="$2" msg="$3"
   if [[ "$actual" != "$expected" ]] ; then
     local error_message;
+    # shellcheck disable=SC2261
     error_message=$(cat <<ERROR_END
-     assert is fail: $msg
-     actual         : [$actual]
-     expected       : [$expected]
-     --------------------------------------------------
-     actual   escape: [$(printf '%q' "$actual")]
-     expected escape: [$(printf '%q' "$expected")]
+================================================================================
+error           : $msg
+----------------------------------<先看看echo -e的内容>---------------------------
+expected: [$(echo -e "$expected")]
+actual  : [$(echo -e "$actual")]
+----------------------------------<再看看echo -E的结果----------------------------
+expected: [$(echo -E "$expected")]
+actual  : [$(echo -E "$actual")]
+-----------------------------------<diff>----------------------------------------
+$( diff -y <(echo -E "$expected") <(echo -E "$actual") || true )
+================================================================================
+
 ERROR_END
 )
-    echo "$error_message" >&2
+    echo -E "$error_message" >&2
 
-#    assert_fail "assert is fail: $msg
-#     actual         : [$actual]
-#     expected       : [$expected]
-#     --------------------------------------------------
-#     actual   escape: [$(printf '%q' "$actual")]
-#     expected escape: [$(printf '%q' "$expected")]
-#     "
-     echo "diff------------------------->" >&2
-     diff <(echo -e "$expected") <(echo -e "$actual") >&2
-
-     # todo 应该自己打印堆栈，指出出错的test，这需要定制返回值为4xx
-     return 2
+    echo "$-:assert fail, is open vimdiff check details: (y|yes)"
+    # shellcheck disable=SC2154
+    # __interactive is root option
+    if [[ "$__interactive" == true ]];then
+      IFS= read -p "进入vimdiff看细节？打开vimdiff输入(y|Y)" -n 1 -r is_open_diff
+      if [[ "$is_open_diff" == "y" || "$is_open_diff" == "Y" ]]; then
+        vimdiff <(echo -E "$expected") <(echo -E "$actual")
+      fi
+    fi
+     # TODO 应该自己打印堆栈，指出出错的test，这需要定制返回值为4xx
+     return 100
   fi
 }
 @contains(){
@@ -115,7 +123,7 @@ bake.str_unescape() {
   printf '%s' "${str@E}"
 }
 
-# todo 模仿http错误
+# TODO 模仿http错误
 # 报错后终止程序，类似于其他语言的_throw Excpetion
 # 因set -o errexit 后，程序将在return 1 时退出，
 # 退出前被‘trap bake._on_error ERR’捕获并显示错误堆栈
@@ -183,7 +191,14 @@ c d";
     }
     str="$(q)"
     assert "${str}" @is "$'a b\nc d'"
-    printf "${str}" | od -c -td1
+    # od：这是一个用来查看文件或其他输入的八进制或十六进制表示形式的工具。在这个例子中，使用 -c 参数告诉 od 以字符形式显示输入，
+    # 每个字符及其对应的ASCII码或Unicode码都会被展示出来。-t d1 表示输出格式为十进制 (d)，
+    # 每个字节视为一个单位 (1)，因此对于ASCII字符，这将显示每个字符对应的十进制ASCII码。
+    echo "${str}" | od -c -td1
+    assert "$(printf '%q' "$str")" @is "$'a b\nc d'"
+
+    
+
     read -a arr <<< "${str}"
     # read 按IFS默认$' \n\t'，即用<space>, <newline>,<tab>分词
     # 由于printf "%q"会对非打印字符进行转义，<newline>已经被转为\和n，所以read分词时，
@@ -266,7 +281,12 @@ function tests.str_unescape() {
     assert "$(bake.str_unescape "$(bake.str_escape $'1 " ' )")"      @is $'1 " '
     assert "$(bake.str_unescape "$(bake.str_escape $'1 \n ' )")"     @is $'1 \n '
 }
+
+# shellcheck disable=SC2046
+# shellcheck disable=SC2031
+# shellcheck disable=SC2016
 study.declare(){
+
   (
     declare a=1 b=2
     assert "$a" @is "1"
@@ -274,6 +294,7 @@ study.declare(){
   )
 
   (
+    # dynamic declare 
     s='a=1 b=2'
     declare $(printf "%s" "$s")
     assert "$a" @is "1"
@@ -281,15 +302,20 @@ study.declare(){
   )
   (
     s='a=1 b=2'
-    declare $(printf "%s" "$s")
+    declare $(printf "%s" "$s")  
     assert "$a" @is "1"
     assert "$b" @is "2"
   )
 
-    # declare ansi c quoting $''
   (
+    # declare ansi c quoting $''
+    declare $'a=1 2'
+    assert "$a" @is "1 2"
+
+    # but not work with real ansi c quoting
     err=$( declare $(printf "%s" "a=$'1 2'") 2>&1  ) || true
     assert "$err" @contains "2'': not a valid identifier"
+
   )
 
   (
@@ -306,15 +332,23 @@ b=$'3 4'")
     # "|| true" 防止set -o errexit
     err=$( declare $(printf "%s" 'a=1 b=2 ls -al -- ll') 2>&1  ) || true
     assert "$err" @contains "-al': not a valid identifier"
+
     err=$( declare $(printf "%s" 'a=$(ls -al)') 2>&1  ) || true
     assert "$err" @contains "-al)': not a valid identifier"
+
     err=$( declare $(printf "%s" 'a=b $(ls)=x') 2>&1  ) || true
     assert "$err" @contains $"ls)=x': not a valid identifier"
+
     err=$( declare $(printf "%s" 'a=b `ls`=x') 2>&1  ) || true
     assert "$err" @contains "=x': not a valid identifier"
   )
 
 }
+
+# shellcheck disable=SC2046
+# shellcheck disable=SC2031
+# shellcheck disable=SC2016
+
 # eval 用起来比declare 省心多了
 study.eval(){
   (
@@ -358,7 +392,7 @@ study.eval(){
 study.array(){
   a=("line1 a
 line2" x)
-    assert "$(printf "[%s]" ${a[@]})" @is $'[line1][a][line2][x]'
+    assert "$(printf "[%s]" "${a[@]}")" @is $'[line1][a][line2][x]'
     assert "$(printf "[%s]" ${a[@]})" @is $'[line1][a][line2][x]'
     # 由于"$@" 特殊语法，数组可已包含空格换行符， 不影响分词
     assert "$(printf "[%s]" "${a[@]}")" @is $'[line1 a\nline2][x]'
@@ -420,7 +454,7 @@ root"
   assert "$(bake._cmd_up_chain '')" @is "root"
 }
 
-# @fixme 这里有问题，判断错了
+# BUG 这里有问题，判断错了,导致后缀被认为是前缀
 tests.cmd_children(){
   assert "$(bake._cmd_children test)" @is "tests"
 }
@@ -480,7 +514,8 @@ type"
 tests.opt_cmd_chain_opts(){
   assert "$(bake._opt_cmd_chain_opts "root")" @is \
 "root/opts/debug
-root/opts/help"
+root/opts/help
+root/opts/interactive"
 
   # "include parent option"
   assert "$(bake._opt_cmd_chain_opts "bake.opt")" @is \
@@ -492,7 +527,8 @@ bake.opt/opts/name
 bake.opt/opts/required
 bake.opt/opts/type
 root/opts/debug
-root/opts/help"
+root/opts/help
+root/opts/interactive"
 }
 
 
@@ -532,5 +568,8 @@ temp() {
   echo "__help: $@"
 }
 
+# bake.opt --abbr 换成--short
+bake.opt --cmd "root" --abbr i --name interactive  --type bool --desc "交互模式运行，会用到STDIN等，test.bash默认不交互"
+eval "$(bake.parse "$@")"
 
 bake.go "$@"
