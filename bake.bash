@@ -76,10 +76,13 @@ bake._real_path() (
 
 # bake context
 BAKE_PATH="$(bake._real_path "${BASH_SOURCE[0]}")"
+# shellcheck disable=SC2034
 BAKE_DIR="$(dirname "$BAKE_PATH")"
 BAKE_FILE="$(basename "$BAKE_PATH")"
-declare debug=false
-declare help=false
+
+# defalut option： --debug --help
+__debug=false
+__help=false
 
 bake._on_error() {
   bake._error "ERROR - trapped an error: ↑ , trace: ↓"
@@ -128,7 +131,8 @@ bake._info() {
   bake._log "$@"
 }
 bake._debug() {
-  if [[ "${debug}" != true ]]; then return 0; fi
+  # shellcheck disable=SC2154
+  if [[ "${__debug}" != true ]]; then return 0; fi
   bake._log "$@"
 }
 # Usage: bake._log DEBUG "错误消息"
@@ -150,8 +154,6 @@ declare -A _bake_data
 # only save all commands, we use it to build command tree
 # it is cache cmd tree from _bake_data
 declare -A _bake_cmds
-
-TYPE_CMD="type:cmd"
 
 ##########################################
 # bake common function
@@ -189,17 +191,23 @@ bake._str_revertLines() {
   sed '1!G;h;$!d' # sed magic
 }
 
-# Usage: bake._path_dirname <str> [delimiter:default /]
-# similar command dirname, but
-#     dirname root is ".", only work with "/"
-#     bake._path_dirname root is "" , can set delimiter
-# bake._path_dirname a.b.c .    => a.b
+# Usage: bake._path_dirname <path> [delimiter:default /]
+# similar command dirname, but diff:
+#   dirname a                => '.'
+#   bake._path_dirname a     => ''
+#
+# Example: delimiter:
+#   bake._path_dirname a.b.c "."    => "a.b"
+#   bake._path_dirname a     "."    => ""
 bake._path_dirname() {
-  local pathLikeStr="$1" delimiter="${2:-/}"
-  if [[ "$pathLikeStr" != *"$delimiter"* ]]; then
+  local path="$1" 
+  local delimiter="${2:-/}"
+
+#   bake._path_dirname level1_path "."    => ""
+  if [[ "$path" != *"$delimiter"* ]]; then
     return
   fi
-  printf '%s' "${pathLikeStr%$delimiter*}"
+  echo "${path%"$delimiter"*}"
 }
 # Usage: bake._path_first <str> [delimiter:default /]
 # bake._path_first a.b.c .    => a
@@ -219,7 +227,7 @@ bake._path_first() {
 bake._path_basename() {
   local pathLikeStr="$1" delimiter="${2:-/}"
   # ${1##*/}  => ## left remove until last "/"
-  printf "${pathLikeStr##*$delimiter}"
+  echo "${pathLikeStr##*/}"
 }
 
 # Samples:
@@ -284,10 +292,22 @@ bake._cmd_down_chain() {
   bake._cmd_up_chain "$1" | bake._str_revertLines
 }
 
-# Usage: bake._opt_cmd_chain_opts <cmd>
-# Examples: bake._opt_cmd_chain_opts bake.info
-# return optionDataPath list
-bake._opt_cmd_chain_opts() {
+
+# 列出命令所有选项，子命令会继承父命令选项
+# Usage: bake._opts <cmd>
+# Examples: 
+# ./test.bash bake._opts bake.opt
+#   bake.opt/opts/abbr
+#   bake.opt/opts/cmd
+#   bake.opt/opts/default
+#   bake.opt/opts/desc
+#   bake.opt/opts/name
+#   bake.opt/opts/required
+#   bake.opt/opts/type
+#   root/opts/debug
+#   root/opts/help
+#   root/opts/interactive
+bake._opts() {
   local cmd=$1
   local upCmds
   readarray -t upCmds <<<"$(bake._cmd_up_chain "$cmd")"
@@ -338,24 +358,19 @@ bake._cmd_register() {
       fi
     done
 
-    # list all function name
-    # declare -F | awk {'print $3'} == compgen -A function
-    # declare -f func1  -> func1
-    # declare -fx func2 -> func2
-#  done <<<"$(compgen -A function)"
-  done <<<"$(declare -F | grep "declare -f" | awk {'print $3'})"
+  # declare -F | grep "declare -f"  列出函数列表
+  #   =>  declare -f bake.cmd
+  # cut : 
+  #    -d " "      => 指定delim分割符
+  #    -f 3        => 指定list列出第3个字段即函数名
+  done <<< "$(declare -F | grep "declare -f" | cut -d " " -f 3) "
 }
 
 # 显示一条命令的帮助
-# Usage: bake._show_cmd_help <CMD>
-# Examples: bake._show_cmd_help deploy #显示deploy的帮助:
-bake._show_cmd_help() {
-  local cmd="$1"
-
-  if [[ "$cmd" == "" ]]; then
-    bake._throw "bake._show_cmd_help need a arg: bake._show_cmd_help [cmd]"
-  fi
-
+# Usage: bake._help <CMD>
+# Examples: bake._help deploy #显示deploy的帮助:
+bake._help() {
+  local cmd="${1:?bake._help() required 'cmd' arg,  Usage: bake._help <cmd>}"
   shift
 
   echo
@@ -366,13 +381,23 @@ bake._show_cmd_help() {
       echo "Running:【$(bake._pwd)/$BAKE_FILE $cmd $*】"
   fi
 
+  # shellcheck disable=SC2154
+  if [[ "$__debug" == true ]] ;then
+      echo "==============<debug info>=============="
+      echo "__debug  : $__debug"
+      echo "__help   : $__help"
+      echo "\$*       : 【$*】"
+      echo "========================================"
+  fi
+
   echo
   echo "${_bake_data["${cmd}/desc"]}"
   echo
 
   echo "Available Options:"
-  for optPath in $(bake._opt_cmd_chain_opts "$cmd"); do
-    local opt=$(bake._path_basename "$optPath")
+  for optPath in $(bake._opts "$cmd"); do
+    local opt 
+    opt=$(bake._path_basename "$optPath")
     local name=${_bake_data["$optPath/name"]}
     local type=${_bake_data["$optPath/type"]}
     local required=${_bake_data["$optPath/required"]}
@@ -399,7 +424,7 @@ Available Commands:"
     # only show public cmd if not verbose
     # '_'起头的命令和'bake'命令，只有debug模式才打印出来
     if [[ ("$subCmd" == _* || "$subCmd" == bake*)  ]]; then
-      if [[  "$debug" != "true" ]]; then
+      if [[  "$__debug" != "true" ]]; then
         continue
       fi
     fi
@@ -437,15 +462,16 @@ _bake_go_parse() {
   if [[ "$cmd" == "" ]]; then cmd="root"; fi
   eval "$(bake.parse "$cmd" "$@")"
 
-  if [[ "$help" == "true" ]]; then
-    echo bake._show_cmd_help "$cmd" "$@"
+  # shellcheck disable=SC2154
+  if [[ "$__help" == "true" ]]; then
+    echo bake._help "$cmd" "$@"
     return 0
   fi
 
   #  if fileExist then show help
   if ! declare -F "$cmd" | grep "$cmd" &>/dev/null  2>&1; then
     if [[ "${_bake_cmds["$cmd"]}" == "PARENT_CMD_NOT_FUNC" ]]; then
-      echo bake._show_cmd_help "$cmd" "$@"
+      echo bake._help "$cmd" "$@"
       return 0
     fi
     bake._throw "Error: 404 ,cmd '${cmd}' not define, please define cmd function '${cmd}()'"
@@ -528,7 +554,7 @@ bake.parse() {
   declare -A allOptOnCmdChain
   # collect opt from command chain : root>pub>pub.get
   #   root option first , priority low -> priority high:
-  for optPath in $(bake._opt_cmd_chain_opts "$cmd" | bake._str_revertLines); do
+  for optPath in $(bake._opts "$cmd" | bake._str_revertLines); do
     local opt
     opt=$(bake._path_basename "$optPath")
     local abbr
@@ -643,8 +669,8 @@ EOF
   echo
   echo '## options'
   echo
-  echo "help   = $help"
-  echo "debug  = $debug"
+  echo "help   = $__help"
+  echo "debug  = $__debug"
   echo
 
 }

@@ -501,13 +501,13 @@ tests.cmd_register(){
 }
 
 tests.opt_cmd_chain_opts(){
-  assert "$(bake._opt_cmd_chain_opts "root")" @is \
+  assert "$(bake._opts "root")" @is \
 "root/opts/debug
 root/opts/help
 root/opts/interactive"
 
   # "include parent option"
-  assert "$(bake._opt_cmd_chain_opts "bake.opt")" @is \
+  assert "$(bake._opts "bake.opt")" @is \
 "bake.opt/opts/abbr
 bake.opt/opts/cmd
 bake.opt/opts/default
