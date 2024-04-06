@@ -5,7 +5,7 @@ set -o functrace # -T If set, any trap on DEBUG and RETURN are inherited by shel
 set -o pipefail  # default pipeline status==last command status, If set, status=any command fail
 #set -o nounset # -u: don't use it ,it is crazy, 1.bash version is diff Behavior 2.we need like this: ${arr[@]+"${arr[@]}"}
 
-_bake_version=v0.3.20240406
+_bake_version=v0.4.20240406
 
 # It can run normally on macos
 # bake == (bash)ake == 去Make的bash tool
@@ -60,19 +60,12 @@ if ((BASH_VERSINFO[0] < 4 || (\
   echo "Error: It's 2082 ，Your bash is still this version(BASH_VERSINFO: ${BASH_VERSINFO[*]})，Please install bash 4.4+:
     apt install bash  # ubuntu
     brew install bash # mac"
-  exit 1
+  exit 124  # =>http code 424
 fi
+
 # On Mac OS, readlink -f doesn't work, so use.bake._real_path get the real path of the file
-bake._real_path() (
-  cd "$(dirname "$1")"
-  file="$PWD/$(basename "$1")"
-  while [[ -L "$file" ]]; do
-    file="$(readlink "$file")"
-    cd -P "$(dirname "$file")"
-    file="$PWD/$(basename "$file")"
-  done
-  echo "$file"
-)
+bake._real_path() {  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}" ; }
+
 
 # bake context
 BAKE_PATH="$(bake._real_path "${BASH_SOURCE[0]}")"

@@ -12,19 +12,9 @@ set -o pipefail  # default pipeline status==last command status, If set, status=
 ########################################################
 
 
-function _real_path() (
-  cd -P "$(dirname -- "$1")"
-  file="$PWD/$(basename -- "$1")"
-  while [[ -L "$file" ]]; do
-    cd -P "$(dirname -- "$file")"
-    file="$(readlink -- "$file")"
-    cd -P "$(dirname -- "$file")"
-    file="$PWD/$(basename -- "$file")"
-  done
-  echo "$file"
-)
+bake._real_path() {  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}" ; }
 
-TEST_PATH="$(_real_path "${BASH_SOURCE[0]}")"
+TEST_PATH="$(bake._real_path "${BASH_SOURCE[0]}")"
 TEST_DIR="$(dirname "$TEST_PATH")"
 TEST_FILE="$(basename "$TEST_PATH")"
 
