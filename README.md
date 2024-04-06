@@ -53,6 +53,9 @@
 #      需要设置设一个简单的规则：只有叶子命令才能正常执行，这样非叶子命令就不需要有参数
 #   2. 当前 无法判断错误options：./bake --no_this_opt ,同上
 #   3. 类似flutter run [no-]pub 反向选项
+# TODO 
+#   利用extdebug , declare -F xxx 可显示行号，这下顺序解决了！
+#  https://www.gnu.org/software/bash/manual/bash.html#The-Shopt-Builtin
 # 
 
 
