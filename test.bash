@@ -530,6 +530,11 @@ function test(){
       done <<<"$(declare -F | grep "declare -f" | awk {'print $3'})"
 }
 
+#############################################################
+# tail 初始化区
+# 在头head定义变量，尾tail执行初始化，中间只有函数
+#############################################################
+
 
 bake.cmd --cmd root --desc "
 $(cat <<END_DESC
@@ -549,7 +554,7 @@ temp() {
 }
 
 # bake.opt --abbr 换成--short
-bake.opt --cmd "root" --abbr i --name interactive  --type bool --desc "交互模式运行，会用到STDIN等，test.bash默认不交互"
+bake.opt --cmd "root" --abbr i --name interactive  --type bool --desc "test.bash: 交互模式运行，会用到STDIN等，test.bash默认不交互"
 eval "$(bake.parse "$@")"
 
 bake.go "$@"

@@ -53,6 +53,10 @@ _bake_version=v0.4.20240406
 #     - https://github.com/chen56/note/blob/main/bake
 #     - https://github.com/chen56/younpc/blob/main/bake
 
+#############################################################
+# bake head 变量定义区
+# bake.bash 在头head定义变量，尾tail执行初始化，中间只有函数
+#############################################################
 
 # check bake dependencies
 if ((BASH_VERSINFO[0] < 4 || (\
@@ -66,16 +70,34 @@ fi
 # On Mac OS, readlink -f doesn't work, so use.bake._real_path get the real path of the file
 bake._real_path() {  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}" ; }
 
-
 # bake context
 BAKE_PATH="$(bake._real_path "${BASH_SOURCE[0]}")"
 # shellcheck disable=SC2034
 BAKE_DIR="$(dirname "$BAKE_PATH")"
 BAKE_FILE="$(basename "$BAKE_PATH")"
 
-# defalut option： --debug --help
+# defalut option：bake --debug --help
+# bake.parse 会按bake.opt的定义动态生成相应变量，这里事先声明，是为了备注其存在
+# 请参考[bake.parse]
 __debug=false
 __help=false
+
+
+# Simulating object-oriented data structures with flat associative arrays
+# use ./bake _self to see internal var
+# save all other data
+declare -A _bake_data
+
+# only save all commands, we use it to build command tree
+# it is cache cmd tree from _bake_data
+declare -A _bake_cmds
+
+
+
+##########################################
+# bake internal function
+##########################################
+
 
 bake._on_error() {
   bake._error "ERROR - trapped an error: ↑ , trace: ↓"
@@ -97,9 +119,6 @@ bake._on_error() {
     i=$((i + 1))
   done
 }
-# Add the error catch first
-#https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-trap
-trap "bake._on_error" ERR
 
 
 # replace $HOME with "~"
@@ -113,20 +132,21 @@ bake._pwd() { echo "${PWD/#$HOME/\~}" ; }
 # 退出前被‘trap bake._on_error ERR’捕获并显示错误堆栈
 # Usage: bake._throw <ERROR_MESSAGE>
 bake._throw(){
-  bake._error "$@"
+  bake._log FATAL "$@"
   # set -o errexit 后，程序将退出，退出前被trap bake._on_error Err捕获并显示错误堆栈
-  return 1
+  return 200
 }
 bake._error() {
-  bake._log "$@"
+  bake._log ERROR "$@"
 }
 bake._info() {
-  bake._log "$@"
+  bake._log INFO "$@"
 }
 bake._debug() {
   # shellcheck disable=SC2154
-  if [[ "${__debug}" != true ]]; then return 0; fi
-  bake._log "$@"
+  if [[ "${__debug}" == true ]]; then 
+    bake._log DEBUG "$@"
+  fi
 }
 # Usage: bake._log DEBUG "错误消息"
 bake._log(){
@@ -135,22 +155,7 @@ bake._log(){
 }
 
 
-##########################################
-# bake common script
-##########################################
 
-# Simulating object-oriented data structures with flat associative arrays
-# use ./bake _self to see internal var
-# save all other data
-declare -A _bake_data
-
-# only save all commands, we use it to build command tree
-# it is cache cmd tree from _bake_data
-declare -A _bake_cmds
-
-##########################################
-# bake common function
-##########################################
 
 # Usage: bake._str_cutLeft <str> <left>
 # bake._path_dirname a/b/c  a/b    => c
@@ -377,9 +382,10 @@ bake._help() {
   # shellcheck disable=SC2154
   if [[ "$__debug" == true ]] ;then
       echo "==============<debug info>=============="
-      echo "__debug  : $__debug"
-      echo "__help   : $__help"
-      echo "\$*       : 【$*】"
+      echo "__debug     : $__debug"
+      echo "__help      : $__help"
+      echo "\$*          : 【$*】"
+      echo "BASH_SOURCE : 【${BASH_SOURCE[*]}】"
       echo "========================================"
   fi
 
@@ -479,10 +485,12 @@ _bake_go_parse() {
 ##########################################
 
 
-# 为cmd配置参数(public api)
+# bake.opt (public api)
+# 为cmd配置option
 # Examples:
 #   bake.opt --cmd "build" --name "is_zip" --type bool --required --abbr z --default true --desc "is_zip, build项目时是否压缩"
-# 每个参数可以配置如下信息：
+# TODO change abbr -> short
+# bake.opt自己的options:
 #   cmd: 参数作用的命令全名
 #   name: 参数长名，可以 ./bake build --is_zip 这样使用
 #   type: 类型，目前支持 bool|string|list
@@ -491,14 +499,8 @@ _bake_go_parse() {
 #   default: 缺省值, 未指定参数时，使用此值
 #   desc: 参数帮助，将显示在‘./bake build -h’命令帮助里
 # 参考[bake.parse]
-bake._opt_internal_add bake.opt "cmd"      "string" "true"  ""      ""      "cmd name"
-bake._opt_internal_add bake.opt "name"     "string" "true"  ""      ""      "option name"
-bake._opt_internal_add bake.opt "type"     "string" "true"  ""      ""      "option type [bool|string|list]"
-bake._opt_internal_add bake.opt "required" "bool"   "false" "false" "false" "option required [true|false],default[false]"
-bake._opt_internal_add bake.opt "abbr"     "string" "false" ""      ""      "option abbr"
-bake._opt_internal_add bake.opt "default"  "string" "false" ""      ""      "option abbr"
-bake._opt_internal_add bake.opt "desc"  "string" "false" ""      ""      "option desc"
 bake.opt() {
+  # 本函数自己的options定义在本文件最下方
   eval "$(bake.parse "$@")"
   if [[ "$__name" == "" ]]; then
     echo "error: option required [--name]" >&2 && return 1
@@ -612,8 +614,6 @@ bake.parse() {
 #   bake.cmd --cmd root \
 #             --desc "flutter-note cli."
 # 这样就可以用'./your_script -h' 查看根帮助了
-bake.opt --name "cmd"  --cmd "bake.cmd" --type string --desc "cmd function  "
-bake.opt --name "desc" --cmd "bake.cmd" --type string --desc "cmd desc, show in help"
 bake.cmd() {
 
   # 模版代码，放到每个需要使用option的函数中，然后就可以使用option了
@@ -649,23 +649,22 @@ EOF
   echo '# bake info & internal var'
   echo
   echo '## _bake_cmds'
-  echo
   for key in "${!_bake_cmds[@]}"; do
     printf "%-60s = %q\n" "_bake_cmds[$key]" "${_bake_cmds["$key"]:0:100}"
   done | sort
   echo
   echo '## _bake_data'
-  echo
   for key in "${!_bake_data[@]}"; do
     printf "%-60s = %q\n" "_bake_data[$key]" "${_bake_data["$key"]:0:100}"
   done | sort
   echo
   echo '## options'
+  echo "help        = $__help"
+  echo "debug       = $__debug"
   echo
-  echo "help   = $__help"
-  echo "debug  = $__debug"
-  echo
-
+  echo '## env'
+  echo "BASH_SOURCE = ${BASH_SOURCE[*]}" 
+  echos
 }
 
 # 入口 (public api)
@@ -685,6 +684,38 @@ bake.go() {
   eval "$(_bake_go_parse "$@")"
 }
 
+
+# bake内部版本(public api)
+bake.version(){
+  echo "$_bake_version"
+}
+
+
+#############################################################
+# bake tail 初始化区
+# bake.bash 在头head定义变量，尾tail执行初始化，中间只有函数
+#############################################################
+
+# Add the error catch first
+#https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-trap
+trap "bake._on_error" ERR
+
+# 低级模式定义bake.opt函数的options
+# bake.opt函数是注册options用的， 它自己也需要options，所以只能这样低级模式定义，吃自己的狗粮
+bake._opt_internal_add bake.opt "cmd"       "string"  "true"  ""       ""      "cmd name"
+bake._opt_internal_add bake.opt "name"      "string"  "true"  ""       ""      "option name"
+bake._opt_internal_add bake.opt "type"      "string"  "true"  ""       ""      "option type [bool|string|list]"
+bake._opt_internal_add bake.opt "required"  "bool"    "false" "false"  ""      "option required [true|false],default[false]"
+bake._opt_internal_add bake.opt "abbr"      "string"  "false" ""       ""      "option abbr"
+bake._opt_internal_add bake.opt "default"   "string"  "false" ""       ""      "option abbr"
+bake._opt_internal_add bake.opt "desc"      "string"  "false" ""       ""      "option desc"
+
+# !!! 这之后，再也不用 低级option模式bake._opt_internal_add
+
+# 高级模式定义bake.cmd的options
+bake.opt --name "cmd"  --cmd "bake.cmd" --type string --desc "cmd function  "
+bake.opt --name "desc" --cmd "bake.cmd" --type string --desc "cmd desc, show in help"
+
 # root is special cmd(you can define it), bake add some common options to this cmd, you can add yourself options
 bake.opt --cmd root --name "help"    --abbr h --type bool   --default false --desc "print help, show all commands"
 bake.opt --cmd root --name "debug"   --abbr d --type bool   --default false  --desc "debug mode, print more internal info"
@@ -692,13 +723,9 @@ bake.opt --cmd root --name "debug"   --abbr d --type bool   --default false  --d
 # BASH_SOURCE > 1 , means bake import from other script, it is lib mode
 # lib mod is not load app function, so we need to stop here
 if ((${#BASH_SOURCE[@]} > 1)); then
-  bake._debug "【${BAKE_FILE}】 call by other script【$(printf " ▶︎ %s" "${BASH_SOURCE[@]}")】, lib mode on, not load below app script" >&2
+  echo "【${BAKE_FILE}】 call by other script【$(printf " ▶︎ %s" "${BASH_SOURCE[*]}")】, lib mode on, not load below app script" >&2
 fi
 
-# bake内部版本(public api)
-bake.version(){
-  echo "$_bake_version"
-}
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # bake common script end line.
