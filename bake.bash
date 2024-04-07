@@ -664,7 +664,7 @@ EOF
   echo
   echo '## env'
   echo "BASH_SOURCE = ${BASH_SOURCE[*]}" 
-  echos
+  echo
 }
 
 # 入口 (public api)
