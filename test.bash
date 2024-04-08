@@ -225,9 +225,9 @@ study.pipe(){
 ____________________________test_start(){ echo x;}
 
 tests.api_cmd_parse(){
-  bake.opt --cmd "tests.api_cmd_parse" --name stringOpt --type string
-  bake.opt --cmd "tests.api_cmd_parse" --name boolOpt --type bool
-  bake.opt --cmd "tests.api_cmd_parse" --name listOpt --type list
+  bake.opt --cmd "tests.api_cmd_parse" --long stringOpt --type string
+  bake.opt --cmd "tests.api_cmd_parse" --long boolOpt --type bool
+  bake.opt --cmd "tests.api_cmd_parse" --long listOpt --type list
 
   assert "$(bake.parse  --boolOpt )" @is 'declare -- __boolOpt="true"
 shift 1'
@@ -244,11 +244,11 @@ shift 4'
 }
 
 tests.api_opt(){
-  bake.opt --cmd "tests.opt.add" --name boolopt --type bool
+  bake.opt --cmd "tests.opt.add" --long boolopt --type bool
 }
 
 tests.api_opt_value_parse_and_get_value(){
-  bake.opt --cmd "tests.api_opt_value_parse_and_get_value" --name xxx --type string  
+  bake.opt --cmd "tests.api_opt_value_parse_and_get_value" --long xxx --type string  
   
   # 模拟shell参数
   set -- --xxx chen
@@ -501,7 +501,7 @@ root/opts/interactive"
 "bake.opt/opts/cmd
 bake.opt/opts/default
 bake.opt/opts/desc
-bake.opt/opts/name
+bake.opt/opts/long
 bake.opt/opts/required
 bake.opt/opts/short
 bake.opt/opts/type
@@ -554,7 +554,7 @@ temp() {
 }
 
 # bake.opt --short 换成--short
-bake.opt --cmd "root" --short i --name interactive  --type bool --desc "test.bash: 交互模式运行，会用到STDIN等，test.bash默认不交互"
+bake.opt --cmd "root" --short i --long interactive  --type bool --desc "test.bash: 交互模式运行，会用到STDIN等，test.bash默认不交互"
 eval "$(bake.parse "$@")"
 
 bake.go "$@"

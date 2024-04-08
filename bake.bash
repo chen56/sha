@@ -36,7 +36,7 @@ _bake_version=v0.4.20240406
 #      ./bake                   # 如果有root()函数，就执行它
 # 4. 像其他高级语言的cli工具一样，用简单变量就可以获取命令option:
 #    # a. 先在bake文件里里定义app options
-#      bake.opt --cmd build --name "target" --type string
+#      bake.opt --cmd build --long "target" --type string
 #    # b. 解析和使用option
 #      function build() {
 #         eval "$(bake.parse  "$@")";
@@ -299,7 +299,7 @@ bake._cmd_down_chain() {
 #   bake.opt/opts/cmd
 #   bake.opt/opts/default
 #   bake.opt/opts/desc
-#   bake.opt/opts/name
+#   bake.opt/opts/long
 #   bake.opt/opts/required
 #   bake.opt/opts/type
 #   root/opts/debug
@@ -325,14 +325,14 @@ bake._opts() {
 # only use by bake.opt,
 # because "bake.opt" is meta function, use this func to add self
 bake._opt_internal_add() {
-  local cmd="$1" opt="$2" type="$3" required="$4" default="$5" short="$6" desc="$7"
-  _bake_data["$cmd/opts/$opt"]="type:opt"
-  _bake_data["$cmd/opts/$opt/name"]="$opt"
-  _bake_data["$cmd/opts/$opt/type"]="$type"
-  _bake_data["$cmd/opts/$opt/required"]="$required"
-  _bake_data["$cmd/opts/$opt/short"]="$short"
-  _bake_data["$cmd/opts/$opt/default"]="$default"
-  _bake_data["$cmd/opts/$opt/desc"]="$desc"
+  local cmd="$1" long="$2" short="$3" type="$4" required="$5" default="$6" desc="$7"
+  _bake_data["$cmd/opts/$long"]="type:opt"
+  _bake_data["$cmd/opts/$long/long"]="$long"
+  _bake_data["$cmd/opts/$long/short"]="$short"
+  _bake_data["$cmd/opts/$long/type"]="$type"
+  _bake_data["$cmd/opts/$long/required"]="$required"
+  _bake_data["$cmd/opts/$long/default"]="$default"
+  _bake_data["$cmd/opts/$long/desc"]="$desc"
 }
 
 
@@ -397,7 +397,7 @@ bake._help() {
   for optPath in $(bake._opts "$cmd"); do
     local opt 
     opt=$(bake._path_basename "$optPath")
-    local name=${_bake_data["$optPath/name"]}
+    local long=${_bake_data["$optPath/long"]}
     local type=${_bake_data["$optPath/type"]}
     local required=${_bake_data["$optPath/required"]}
     local short=${_bake_data["$optPath/short"]}
@@ -413,7 +413,7 @@ bake._help() {
       fi
     fi
 
-    printf " --%-20s -%-2s %-6s required:[%s] %b\n" "$name $optArgDesc" "$short" "$type" "$required" "$desc"
+    printf " --%-20s -%-2s %-6s required:[%s] %b\n" "$long $optArgDesc" "$short" "$type" "$required" "$desc"
   done
 
   echo "
@@ -488,11 +488,10 @@ _bake_go_parse() {
 # bake.opt (public api)
 # 为cmd配置option
 # Examples:
-#   bake.opt --cmd "build" --name "is_zip" --type bool --required --short z --default true --desc "is_zip, build项目时是否压缩"
-# TODO change short -> short
+#   bake.opt --cmd "build" --long "is_zip" --type bool --required --short z --default true --desc "is_zip, build项目时是否压缩"
 # bake.opt自己的options:
 #   cmd: 参数作用的命令全名
-#   name: 参数长名，可以 ./bake build --is_zip 这样使用
+#   long: 参数长名，可以 ./bake build --is_zip 这样使用
 #   type: 类型，目前支持 bool|string|list
 #   required: 是否必须提供，不提供将报错
 #   short: 参数短名, 可以 ./bake build -z 这样使用
@@ -500,10 +499,11 @@ _bake_go_parse() {
 #   desc: 参数帮助，将显示在‘./bake build -h’命令帮助里
 # 参考[bake.parse]
 bake.opt() {
+  local __long __short __type __required __cmd __default __desc
   # 本函数自己的options定义在本文件最下方
   eval "$(bake.parse "$@")"
-  if [[ "$__name" == "" ]]; then
-    echo "error: option required [--name]" >&2 && return 1
+  if [[ "$__long" == "" ]]; then
+    echo "error: option required [--long]" >&2 && return 1
   fi
   if [[ "$__type" == "" ]]; then
     echo "error: option required [--type]" >&2 && return 1
@@ -511,16 +511,16 @@ bake.opt() {
   if [[ "$__type" != "bool" && "$__type" != "string" && "$__type" != "list" ]]; then
     echo "error: option [--type] must in [bool|string|list] " >&2 && return 1
   fi
-  bake._opt_internal_add "$__cmd" "$__name" "$__type" "${__required:-false}" "$__default" "$__short" "$__desc"
+  bake._opt_internal_add "$__cmd" "$__long" "$__short" "$__type" "${__required:-false}" "$__default" "$__desc"
 }
 
 # bake.opt  (public api)
 # 像其他高级语言的cli工具一样，用简单变量就可以获取名称化的命令参数:
 # 支持bool,string,list三种参数，用法如下：
 # 你的./bake脚本里：
-#      bake.opt --cmd build --name "is_zip" --type bool
-#      bake.opt --cmd build --name "target" --type string
-#      bake.opt --cmd build --name "files"  --type string
+#      bake.opt --cmd build --long "is_zip" --type bool
+#      bake.opt --cmd build --long "target" --type string
+#      bake.opt --cmd build --long "files"  --type string
 #      function build() {
 #         # 模版代码，把生成的脚本eval出来
 #         eval "$(bake.parse  "$@")";
@@ -559,7 +559,7 @@ bake.parse() {
   done
 
   # dynamic opt variable map : optPath:optVarName
-  # Why use dynamic variables: because the variable name is not fixed
+  # Why use dynamic variables: because the variable long is not fixed
   # and We want to manipulate arrays(list type opt) more conveniently
   local -A optVars
   local totalArgs="$#"
@@ -615,7 +615,7 @@ bake.parse() {
 #             --desc "flutter-note cli."
 # 这样就可以用'./your_script -h' 查看根帮助了
 bake.cmd() {
-
+  local __cmd __desc
   # 模版代码，放到每个需要使用option的函数中，然后就可以使用option了
   eval "$(bake.parse  "$@")"
 
@@ -702,23 +702,23 @@ trap "bake._on_error" ERR
 
 # 低级模式定义bake.opt函数的options
 # bake.opt函数是注册options用的， 它自己也需要options，所以只能这样低级模式定义，吃自己的狗粮
-bake._opt_internal_add bake.opt "cmd"       "string"  "true"  ""       ""      "cmd name"
-bake._opt_internal_add bake.opt "name"      "string"  "true"  ""       ""      "option name"
-bake._opt_internal_add bake.opt "type"      "string"  "true"  ""       ""      "option type [bool|string|list]"
-bake._opt_internal_add bake.opt "required"  "bool"    "false" "false"  ""      "option required [true|false],default[false]"
-bake._opt_internal_add bake.opt "short"      "string"  "false" ""       ""      "option short"
-bake._opt_internal_add bake.opt "default"   "string"  "false" ""       ""      "option default"
-bake._opt_internal_add bake.opt "desc"      "string"  "false" ""       ""      "option desc"
+bake._opt_internal_add bake.opt "cmd"       ""   "string"  "true"  ""          "cmd name"
+bake._opt_internal_add bake.opt "long"      ""   "string"  "true"  ""          "option long option: --port --host ..."
+bake._opt_internal_add bake.opt "type"      ""   "string"  "true"  ""          "option type [bool|string|list]"
+bake._opt_internal_add bake.opt "required"  ""   "bool"    "false" "false"     "option required [true|false],default[false]"
+bake._opt_internal_add bake.opt "short"     ""   "string"  "false" ""          "option short option: -a -b -d ..."
+bake._opt_internal_add bake.opt "default"   ""   "string"  "false" ""          "option default"
+bake._opt_internal_add bake.opt "desc"      ""   "string"  "false" ""          "option desc"
 
 # !!! 这之后，再也不用 低级option模式bake._opt_internal_add
 
 # 高级模式定义bake.cmd的options
-bake.opt --name "cmd"  --cmd "bake.cmd" --type string --desc "cmd function  "
-bake.opt --name "desc" --cmd "bake.cmd" --type string --desc "cmd desc, show in help"
+bake.opt --cmd "bake.cmd"  --long "cmd"  --type string --desc "cmd function  "
+bake.opt --cmd "bake.cmd"  --long "desc" --type string --desc "cmd desc, show in help"
 
 # root is special cmd(you can define it), bake add some common options to this cmd, you can add yourself options
-bake.opt --cmd root --name "help"    --short h --type bool   --default false --desc "print help, show all commands"
-bake.opt --cmd root --name "debug"   --short d --type bool   --default false  --desc "debug mode, print more internal info"
+bake.opt --cmd root --long "help"   --short h --type bool   --default false --desc "print help, show all commands"
+bake.opt --cmd root --long "debug"  --short d --type bool   --default false  --desc "debug mode, print more internal info"
 
 # TODO 非lib模式，即直接执行bake.bash,暂时未搞好
 if ((${#BASH_SOURCE[@]} == 1)); then
