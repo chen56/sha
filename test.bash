@@ -498,12 +498,12 @@ root/opts/interactive"
 
   # "include parent option"
   assert "$(bake._opts "bake.opt")" @is \
-"bake.opt/opts/abbr
-bake.opt/opts/cmd
+"bake.opt/opts/cmd
 bake.opt/opts/default
 bake.opt/opts/desc
 bake.opt/opts/name
 bake.opt/opts/required
+bake.opt/opts/short
 bake.opt/opts/type
 root/opts/debug
 root/opts/help
@@ -550,11 +550,11 @@ END_DESC
 
 temp() {
   eval 'shift 2'
-  echo "__help: $@"
+  echo "__help: $*"
 }
 
-# bake.opt --abbr 换成--short
-bake.opt --cmd "root" --abbr i --name interactive  --type bool --desc "test.bash: 交互模式运行，会用到STDIN等，test.bash默认不交互"
+# bake.opt --short 换成--short
+bake.opt --cmd "root" --short i --name interactive  --type bool --desc "test.bash: 交互模式运行，会用到STDIN等，test.bash默认不交互"
 eval "$(bake.parse "$@")"
 
 bake.go "$@"

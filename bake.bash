@@ -295,7 +295,7 @@ bake._cmd_down_chain() {
 # Usage: bake._opts <cmd>
 # Examples: 
 # ./test.bash bake._opts bake.opt
-#   bake.opt/opts/abbr
+#   bake.opt/opts/short
 #   bake.opt/opts/cmd
 #   bake.opt/opts/default
 #   bake.opt/opts/desc
@@ -325,12 +325,12 @@ bake._opts() {
 # only use by bake.opt,
 # because "bake.opt" is meta function, use this func to add self
 bake._opt_internal_add() {
-  local cmd="$1" opt="$2" type="$3" required="$4" default="$5" abbr="$6" desc="$7"
+  local cmd="$1" opt="$2" type="$3" required="$4" default="$5" short="$6" desc="$7"
   _bake_data["$cmd/opts/$opt"]="type:opt"
   _bake_data["$cmd/opts/$opt/name"]="$opt"
   _bake_data["$cmd/opts/$opt/type"]="$type"
   _bake_data["$cmd/opts/$opt/required"]="$required"
-  _bake_data["$cmd/opts/$opt/abbr"]="$abbr"
+  _bake_data["$cmd/opts/$opt/short"]="$short"
   _bake_data["$cmd/opts/$opt/default"]="$default"
   _bake_data["$cmd/opts/$opt/desc"]="$desc"
 }
@@ -400,7 +400,7 @@ bake._help() {
     local name=${_bake_data["$optPath/name"]}
     local type=${_bake_data["$optPath/type"]}
     local required=${_bake_data["$optPath/required"]}
-    local abbr=${_bake_data["$optPath/abbr"]}
+    local short=${_bake_data["$optPath/short"]}
     local default=${_bake_data["$optPath/default"]}
     local desc="${_bake_data["$optPath/desc"]}"
 
@@ -413,7 +413,7 @@ bake._help() {
       fi
     fi
 
-    printf " --%-20s -%-2s %-6s required:[%s] %b\n" "$name $optArgDesc" "$abbr" "$type" "$required" "$desc"
+    printf " --%-20s -%-2s %-6s required:[%s] %b\n" "$name $optArgDesc" "$short" "$type" "$required" "$desc"
   done
 
   echo "
@@ -488,14 +488,14 @@ _bake_go_parse() {
 # bake.opt (public api)
 # 为cmd配置option
 # Examples:
-#   bake.opt --cmd "build" --name "is_zip" --type bool --required --abbr z --default true --desc "is_zip, build项目时是否压缩"
-# TODO change abbr -> short
+#   bake.opt --cmd "build" --name "is_zip" --type bool --required --short z --default true --desc "is_zip, build项目时是否压缩"
+# TODO change short -> short
 # bake.opt自己的options:
 #   cmd: 参数作用的命令全名
 #   name: 参数长名，可以 ./bake build --is_zip 这样使用
 #   type: 类型，目前支持 bool|string|list
 #   required: 是否必须提供，不提供将报错
-#   abbr: 参数短名, 可以 ./bake build -z 这样使用
+#   short: 参数短名, 可以 ./bake build -z 这样使用
 #   default: 缺省值, 未指定参数时，使用此值
 #   desc: 参数帮助，将显示在‘./bake build -h’命令帮助里
 # 参考[bake.parse]
@@ -511,7 +511,7 @@ bake.opt() {
   if [[ "$__type" != "bool" && "$__type" != "string" && "$__type" != "list" ]]; then
     echo "error: option [--type] must in [bool|string|list] " >&2 && return 1
   fi
-  bake._opt_internal_add "$__cmd" "$__name" "$__type" "${__required:-false}" "$__default" "$__abbr" "$__desc"
+  bake._opt_internal_add "$__cmd" "$__name" "$__type" "${__required:-false}" "$__default" "$__short" "$__desc"
 }
 
 # bake.opt  (public api)
@@ -552,10 +552,10 @@ bake.parse() {
   for optPath in $(bake._opts "$cmd" | bake._str_revertLines); do
     local opt
     opt=$(bake._path_basename "$optPath")
-    local abbr
-    abbr=${_bake_data["$optPath/abbr"]}
+    local short
+    short=${_bake_data["$optPath/short"]}
     allOptOnCmdChain["--$opt"]="${optPath}"
-    if [[ "$abbr" != "" ]]; then allOptOnCmdChain["-$abbr"]="${optPath}"; fi
+    if [[ "$short" != "" ]]; then allOptOnCmdChain["-$short"]="${optPath}"; fi
   done
 
   # dynamic opt variable map : optPath:optVarName
@@ -706,8 +706,8 @@ bake._opt_internal_add bake.opt "cmd"       "string"  "true"  ""       ""      "
 bake._opt_internal_add bake.opt "name"      "string"  "true"  ""       ""      "option name"
 bake._opt_internal_add bake.opt "type"      "string"  "true"  ""       ""      "option type [bool|string|list]"
 bake._opt_internal_add bake.opt "required"  "bool"    "false" "false"  ""      "option required [true|false],default[false]"
-bake._opt_internal_add bake.opt "abbr"      "string"  "false" ""       ""      "option abbr"
-bake._opt_internal_add bake.opt "default"   "string"  "false" ""       ""      "option abbr"
+bake._opt_internal_add bake.opt "short"      "string"  "false" ""       ""      "option short"
+bake._opt_internal_add bake.opt "default"   "string"  "false" ""       ""      "option default"
 bake._opt_internal_add bake.opt "desc"      "string"  "false" ""       ""      "option desc"
 
 # !!! 这之后，再也不用 低级option模式bake._opt_internal_add
@@ -717,15 +717,13 @@ bake.opt --name "cmd"  --cmd "bake.cmd" --type string --desc "cmd function  "
 bake.opt --name "desc" --cmd "bake.cmd" --type string --desc "cmd desc, show in help"
 
 # root is special cmd(you can define it), bake add some common options to this cmd, you can add yourself options
-bake.opt --cmd root --name "help"    --abbr h --type bool   --default false --desc "print help, show all commands"
-bake.opt --cmd root --name "debug"   --abbr d --type bool   --default false  --desc "debug mode, print more internal info"
+bake.opt --cmd root --name "help"    --short h --type bool   --default false --desc "print help, show all commands"
+bake.opt --cmd root --name "debug"   --short d --type bool   --default false  --desc "debug mode, print more internal info"
 
-# BASH_SOURCE > 1 , means bake import from other script, it is lib mode
-# lib mod is not load app function, so we need to stop here
-if ((${#BASH_SOURCE[@]} > 1)); then
-  echo "【${BAKE_FILE}】 call by other script【$(printf " ▶︎ %s" "${BASH_SOURCE[*]}")】, lib mode on, not load below app script" >&2
+# TODO 非lib模式，即直接执行bake.bash,暂时未搞好
+if ((${#BASH_SOURCE[@]} == 1)); then
+  bake.go "$@"
 fi
-
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # bake common script end line.
