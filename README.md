@@ -1,11 +1,11 @@
 # bake
 
+纯bash项目，用于父子命令，option能力，类似于dart的args库。
 
 ```bash
 
-# v0.2.20230528 - It can run normally on macos
 # bake == (bash)ake == 去Make的bash tool
-# 
+#
 # https://github.com/chen56/bake
 #
 # bake 是个简单的命令行工具，以替代Makefile的子命令功能
@@ -32,10 +32,10 @@
 #      ./bake                   # 如果有root()函数，就执行它
 # 4. 像其他高级语言的cli工具一样，用简单变量就可以获取命令option:
 #    # a. 先在bake文件里里定义app options
-#      bake.opt --cmd build --name "target" --type string
+#      bake.opt --cmd build --long "target" --type string
 #    # b. 解析和使用option
 #      function build() {
-#         eval "$(bake.parse "${FUNCNAME[0]}" "$@")";
+#         eval "$(bake.parse  "$@")";
 #         echo "build ... your option：target: $target";
 #      }
 #    # c. 调用看看:
@@ -48,15 +48,17 @@
 # 范例可以看实际案例：
 #     - https://github.com/chen56/note/blob/main/bake
 #     - https://github.com/chen56/younpc/blob/main/bake
+
+
 # TODO
 #   1. 当前 无法判断错误命令：./bake no_this_cmd ,因为不知道这是否是此命令的参数，
 #      需要设置设一个简单的规则：只有叶子命令才能正常执行，这样非叶子命令就不需要有参数
 #   2. 当前 无法判断错误options：./bake --no_this_opt ,同上
 #   3. 类似flutter run [no-]pub 反向选项
-# TODO 
+# TODO
 #   利用extdebug , declare -F xxx 可显示行号，这下顺序解决了！
 #  https://www.gnu.org/software/bash/manual/bash.html#The-Shopt-Builtin
-# 
+#
 
 
 ```
@@ -98,19 +100,19 @@ bake.go "$@"
 运行`chmod +x ./bake ` 再运行它：`./bake -h` ,你会看到bake已经帮你组织好了子命令，就像docker/git等父子命令一样使用：
 
 ```bash
-$ ./bake 
+$ ./bake
 
 Available Options:
  --debug                -d  bool   required:[false] debug mode, print more internal info
  --help                 -h  bool   required:[false] print help, show all commands
 
 Available Commands:
-  build          
-  clean          
-  dev            
-  install        
-  preview        
-  test           
+  build
+  clean
+  dev
+  install
+  preview
+  test
 ```
 
-查看更多范例：[examples](./examples/)
+查看更多范例：[examples](./examples)
