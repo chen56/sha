@@ -41,7 +41,7 @@ bake.cmd --cmd root --desc "$( cat <<-EOF
 
 bake cli example.
 
-https://github.com/chen56/younpc
+https://github.com/chen56/bake
 
 Usage:
  ./$SCRIPT_FILE [cmd] [opts] [args...]

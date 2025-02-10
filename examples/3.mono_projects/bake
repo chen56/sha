@@ -3,7 +3,7 @@
 
 ########################################################
 # 范例：示范一个稍微复杂点的多模块mono项目
-# 参考：https://github.com/chen56/younpc/blob/main/bake
+# 参考：https://github.com/chen56/you/blob/main/bake
 # 运行 ./bake -h 查看本文件的效果和帮助
 ########################################################
 
@@ -79,8 +79,8 @@ EOF
 # Example:
 # ------------------------------------
 # $ ./bake run pwd
-# /Users/x/git/younpc/bake:733 -> bake.go ▶︎【pwd】
-# /Users/x/git/younpc
+# /Users/x/git/you/bake:733 -> bake.go ▶︎【pwd】
+# /Users/x/git/you
 # ------------------------------------
 run() {
   local caller_line=$(caller 0 | awk '{print $1}')
@@ -111,7 +111,7 @@ app.install(){  app.run flutter pub get ; }
 app.clean(){    app.run flutter clean ; }
 app.dev(){      app.run flutter run --no-pub --device-id macos ; }
 app.build(){    app.run flutter build macos --release --tree-shake-icons "$@";  }
-app.preview(){  app.run open "${pkgs[app]}/build/macos/Build/Products/Release/younpc.app" ; }
+app.preview(){  app.run open "${pkgs[app]}/build/macos/Build/Products/Release/you.app" ; }
 
 # app_devtools子项目
 bake.cmd --cmd app_devtools --desc "<mono> pkg, Usage: ./$SCRIPT_FILE app_devtools [cmd]"

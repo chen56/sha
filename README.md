@@ -46,8 +46,7 @@
 #     - 这个文件copy走，把你的脚本放到本脚本最后即可.
 #     - 在你的脚本里直接curl下载本脚本后 source即可。
 # 范例可以看实际案例：
-#     - https://github.com/chen56/note/blob/main/bake
-#     - https://github.com/chen56/younpc/blob/main/bake
+#     - https://github.com/chen56/you/blob/main/bake
 
 
 # TODO
