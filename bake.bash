@@ -681,12 +681,13 @@ bake.go() {
   # init register all cmd
   bake.__cmd_register
 
+
   # ⚠️ 注意！本函数把外部参数作为命令执行，所以如果有变量一定要__xxxx__格式，避免影响外部程序
   # ⚠️ 高危场景：在a命令内执行传来的参数是高危操作，假设 :
-  #   1> a(){  local x="a()inner"; $@ ; }
-  #   2> b(){  echo "b()这里你猜能看到a的内部变量吗：x: $x" ; }
+  #   1> a(){  local aInner="a()inner"; $@ ; }
+  #   2> b(){  echo "b()这里你猜能看到a的内部变量吗：aInner: $aInner" ; }
   #   3> a b
-  #      打印结果 => 这里你猜能看到a的内部变量吗：x: a()inner
+  #      打印结果 => 这里你猜能看到a的内部变量吗：aInner: a()inner
   #
   # 行3"a b",将使a函数在其内部执行b函数，这是高危操作，因为a函数的上下文暴露在b函数里，local也不例外
   # 所以我们用另一个函数bake.__go_parse隔离环境
