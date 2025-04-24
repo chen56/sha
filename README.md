@@ -128,3 +128,4 @@ Available Commands:
   - root命令的问题需要再确认
   - 错误码需要梳理
   - __go_parse 还有必要存在吗？bake内部都加上前缀是不是就可以了
+  - 用 `exec "$@"` 执行目标命令
