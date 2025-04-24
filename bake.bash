@@ -429,7 +429,7 @@ Available Commands:"
 
     # only show public cmd if not verbose
     # '_'起头的命令和'bake'命令，只有debug模式才打印出来
-    if [[ ("$subCmd" == __* || "$subCmd" == bake*)  ]]; then
+    if [[ ("$subCmd" == _* || "$subCmd" == bake*)  ]]; then
       if [[  "$__debug" != "true" ]]; then
         continue
       fi
