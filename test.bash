@@ -98,8 +98,16 @@ bake.str_escape() {
   # to 'xxx' or $'xxx'
   printf '%s\n' "${1@Q}"
 }
+
 # unescape from 'xxx' or $'xxx'
 bake.str_unescape() {
+
+  # 安全注意：
+  # eval "printf '%b\n' $str"可以达到同样unescape字符串效果，但是存在注入风险：
+  # str="$'hello! $(echo "I am a hacker")'"
+  # eval "printf '%b\n' $str"
+  #       >>>> hello! I am a hacker
+
   local str=${1}
   # $'xx' => xx
   if [[ "$str" == "\$'"*"'" ]]; then
@@ -111,6 +119,8 @@ bake.str_unescape() {
   #  from 2016 bash 4.4
   #  ${parameter@E} expanded as with the $'...' quoting mechansim
   printf '%s' "${str@E}"
+  # echo -en "$str"            # 同样效果,但echo -e的各发行版行为不同，暂不采纳
+  # printf '%b\n' "$str"       # 同样效果
 }
 
 # TODO 模仿http错误
