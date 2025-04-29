@@ -129,6 +129,8 @@ Available Commands:
   - 错误码需要梳理
   - __go_parse 还有必要存在吗？bake内部都加上前缀是不是就可以了
   - 用 `exec "$@"` 执行目标命令
+  - @cmd 这种没参数的标出下面一个函数是cmd？这样不知道能实现不
+
 ## bug
 
-- help ./bake 执行后提示的路径不对：Running:【: ~/git/xxx/bake.bash 】，应该是 ~/git/xxx/bake 
+- help ./bake 执行后提示的路径不对：Running:【: ~/git/xxx/bake.bash 】，应该是 ~/git/xxx/bake
