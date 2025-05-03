@@ -20,7 +20,6 @@ TEST_FILE="$(basename "$TEST_PATH")"
 
 source "$TEST_DIR/bake.bash"
 
-
 _________________________test_framework_start(){ echo x;}
 
 assert_fail() {
