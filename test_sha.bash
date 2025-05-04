@@ -12,13 +12,19 @@ set -o pipefail  # default pipeline status==last command status, If set, status=
 TEST_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "$TEST_DIR/sake.bash"
-# shellcheck disable=SC1091
 source "$TEST_DIR/unit_test_framework.bash"
 
 
-test_hello(){
-  local script='
+test_hello() {
+ script='
+    set -o errexit   # -e
+    echo "hello world"
+  '
+  
+  assert_equals "hello world" "$(bash -c "$script" 2>&1)"
+}
+test_hello2() {
+ script='
     set -o errexit   # -e
     echo "hello world"
   '
@@ -26,15 +32,18 @@ test_hello(){
   assert_equals "hello world" "$(bash -c "$script" 2>&1)"
 }
 
-test_2(){
-  local script='
-set -e
-. ./sake.bash
-@cmd "build <src_dir>"run build""
-'
-  
-  assert_equals "hello world" "$(eval "$script" 2>&1)"
-}
+test_2() {
+  script=$(cat << 'EOF'
+    . ./sha.bash
+    declare -f
+    a() { echo "a";  }
+    b() { echo "b";  }
 
+    sha "$@"
+EOF
+)
+  bash -c "$script"
+  assert_equals "s" "s"
+}
 
 run_tests

@@ -18,15 +18,16 @@ assert_equals(){
     local error_message;
     # shellcheck disable=SC2261
     error_message=$(cat <<ERROR_END
+
 ================================================================================
 error           : $msg
-----------------------------------<先看看echo -e的内容>---------------------------
+--------------------<check use: echo -e, disabled Escape>-----------------------
 expected: [$(echo -e "$expected")]
 actual  : [$(echo -e "$actual")]
-----------------------------------<再看看echo -E的结果----------------------------
+--------------------<check use: echo -E, enable Escape>-------------------------
 expected: [$(echo -E "$expected")]
 actual  : [$(echo -E "$actual")]
------------------------------------<diff>----------------------------------------
+-----------------------------------<diff>---------------------------------------
 $( diff -y <(echo -E "$expected") <(echo -E "$actual") || true )
 ================================================================================
 
@@ -75,5 +76,5 @@ function run_tests(){
           time "$functionName" ;
         )# 2>&1
   #    done <<< "$(compgen -A function)" # 还是declare -F 再过滤保险
-      done <<<"$(declare -F | grep "declare -f" | awk {'print $3'})"
+      done <<<"$(declare -F | grep "declare -f" | awk {'print $3'} )"
 }
