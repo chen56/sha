@@ -32,18 +32,22 @@ test_hello2() {
   assert_equals "hello world" "$(bash -c "$script" 2>&1)"
 }
 
-test_2() {
+test_sub_command() {
   script=$(cat << 'EOF'
+    #!/usr/bin/env bash
     . ./sha.bash
-    declare -f
-    a() { echo "a";  }
-    b() { echo "b";  }
-
+    a() { echo "a"; } 
+    b() {
+      b1() { echo "b/b1"; }  
+      b2() { echo "b/b2"; }  
+    }
     sha "$@"
 EOF
 )
-  bash -c "$script"
-  assert_equals "s" "s"
+
+  assert_equals "a" "$(bash -c "$script" _ "a" 2>&1)"
+  assert_equals "b/b1" "$(bash -c "$script" _ "b" "b1" 2>&1)"
+  assert_equals "b/b2" "$(bash -c "$script" _ "b" "b2" 2>&1)"
 }
 
 run_tests
