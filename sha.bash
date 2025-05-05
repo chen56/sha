@@ -196,7 +196,7 @@ _sha() {
   # echo "_sha(): args:[$*] , current_cmds:[${_sha_all_cmds[*]}]"
   shift
 
-  # 合法命令先执行
+  # 非法命令
   if [[  "${_sha_current_cmds[$cmd]}" == "" ]]; then
     echo  "ERROR: unknown command $cmd, 请使用 './sha --help' 查看可用的命令。 "
     exit 1;
