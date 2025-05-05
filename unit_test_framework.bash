@@ -49,7 +49,7 @@ ERROR_END
   fi
 }
 assert_contains(){
-  local actual="$1" expected="$2" msg="$3"
+  local expected="$1" actual="$2"  msg="$3"
   if [[ "$actual" != *"$expected"* ]] ; then
     assert_fail "assert fail: $msg
      actual         : [$actual]

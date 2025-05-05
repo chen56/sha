@@ -11,12 +11,13 @@ set -o pipefail  # default pipeline status==last command status, If set, status=
            
 _sha_real_path() {  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}" ; }
 
-# 当前命令层级的命令列表，key是命令名，value是命令名
-declare -A _sha_all_cmds
-declare -A _sha_current_cmds
-# 当前命令层级
-declare _sha_cmd_levels=()
-declare _sha_no_cmd_prefixes=("_" "fn_" "sha") # 示例前缀数组
+# 所有找到的子命令列表，不清理，用于每次注册子命令时判断是否为新命令，key是函数名，value是函数内容
+declare -A _sha_all_registerd_cmds
+# 当前命令子命令列表,每次进入新的命令层级，会清空置换为当前命令的children，key是函数名，value是函数内容
+declare -A _sha_current_cmd_children
+# 当前命令链, 比如执行docker container ls时，解析到最后一个ls时的命令链是：_sha_cmd_chain=(docker container ls)
+declare _sha_cmd_chain=()
+declare _sha_cmd_exclude=("_*" "fn_*" "sha") # 示例前缀数组
 
 # replace $HOME with "~"
 # Usage: _sha_pwd <path>
@@ -35,7 +36,7 @@ _sha_pwd() {
 # log_level: DEBUG|INFO|ERROR|FATAL
 _sha_log(){
   local level="$1"
-  echo -e "$level $(date "+%F %T") $(_sha_pwd "$PWD")\$ ${FUNCNAME[1]}() : $*" >&2
+  echo -e "$level $(date "+%F %T") $(_sha_pwd "$PWD")\$ ${func_name[1]}() : $*" >&2
 }
 
 _sha_on_error() {
@@ -67,8 +68,8 @@ _sha_clear_associative_array() {
 
     # 检查是否提供了恰好一个参数 (关联数组的名称)
     if [ "$#" -ne 1 ]; then
-        echo "用法: ${FUNCNAME[0]} <关联数组名称>" >&2 # ${FUNCNAME[0]} 获取当前函数名
-        echo "示例: ${FUNCNAME[0]} my_data_array" >&2
+        echo "用法: ${func_name[0]} <关联数组名称>" >&2 # ${func_name[0]} 获取当前函数名
+        echo "示例: ${func_name[0]} my_data_array" >&2
         return 1
     fi
 
@@ -97,44 +98,73 @@ _sha_clear_associative_array() {
     done
 }
 
+# 函数：获取当前子命令集合，并使用指定的分隔符连接输出。
+# Usage: _sha_cmd_get_children [delimiter:\n]
+# delimiter (可选): 用于连接命令字符串的分隔符, 如果未提供，默认使用换行符。
+# 输出: 连接后的命令字符串集合到标准输出。
+_sha_cmd_get_children() {
+    local delimiter=${1:-'\n'} # 声明局部变量用于存储分隔符
 
-# Usage: _sha_register_next_level_cmds <cmd_level>
+    # --- 使用分隔符连接并输出 ---
+    # 使用子 Shell 和 IFS 来临时改变字段分隔符
+    # 子Shell不会污染当前 Shell 环境 IFS 的方法
+    (
+        # 设置 IFS 为确定的分隔符
+        IFS="$delimiter"
+        # 使用 "${_sha_current_cmd_children[*]}" 扩展数组的所有元素，并用 IFS 的第一个字符连接它们
+        echo "${_sha_current_cmd_children[*]}"
+    ) 
+}
+
+# Usage: _sha_register_children_cmds <cmd_level>
 # ensure all cmd register
 # root cmd_level is "/"
-_sha_register_next_level_cmds() {
-  local next_level="$1"
+_sha_register_children_cmds() {
+  local next_cmd="$1"
 
-  _sha_cmd_levels+=("$next_level")
+  _sha_cmd_chain+=("$next_cmd")
 
   # 每次清空，避免重复注册，目前的简化模型，只注册当前层级命令，不注册子命令
-  declare -A next_level_cmds
-  local funcName
-  while IFS=$'\n' read -r funcName; do
-    if [[ "$funcName" == */* ]]; then
-      _sha_log ERROR "function name $funcName() can not contains '/' " >&2
-      return 1
-    fi
+  declare -A new_children
+  local func_name func_content
+  while IFS=$'\n' read -r func_name; do
 
+    # check func_name
+    case "$func_name" in
+        */*)  _sha_log ERROR "function name $func_name() can not contains '/' " >&2
+              return 1 ;;
+        # 添加其他想处理的函数名
+    esac
+
+    func_content=$(declare -f "$func_name")
+    
     # 新增的cmd才是下一级的cmd
-    if [[ "${_sha_all_cmds["$funcName"]}" != "" ]]; then
+    # 父节点的子命令中可能和当前节点子命令同名
+    # 判断依据为：只要当前节点识别出的函数与老的不同即认为是当前节点的子命令：
+    # 1. 父节点没有注册过的
+    # 2. 父节点注册过同名的，但内容不一样的
+    if [[ "${_sha_all_registerd_cmds["$func_name"]}" == "$func_content"  ]]; then
       continue;
     fi
     
-    local p
-    local starts_with_any_prefix=false
-
-    for p in "${_sha_no_cmd_prefixes[@]}" ;do
+    # 排除掉某些前缀
+    local exclude
+    local is_excluded=false
+    for exclude in "${_sha_cmd_exclude[@]}" ;do
       # 只要匹配一个非cmd前缀，就不注册cmd
-      if [[ "$funcName" = "$p"* ]]; then
-        starts_with_any_prefix=true
+      # shellcheck disable=SC2053
+      # glob匹配
+      if [[ "$func_name" = $exclude ]]; then
+        is_excluded=true
         break;
       fi
     done
 
-    if ! $starts_with_any_prefix ; then
-        next_level_cmds["$funcName"]="$funcName"
+    if $is_excluded ; then
+       continue 
     fi
 
+    new_children["$func_name"]="$func_content"
 
   # 获取所有函数名输入到while循环里
   # < <(...) 将管道 compgen -A function 的输出作为 while read 的标准输入
@@ -143,11 +173,11 @@ _sha_register_next_level_cmds() {
 
   # 填充为下一级命令列表
   # 设置下一级的命令列表前先清空上一级列表
-  _sha_clear_associative_array _sha_current_cmds
-  # "${!next_level_cmds[@]}" 会扩展为关联数组的所有键的列表
-  for key in "${!next_level_cmds[@]}"; do
-      _sha_all_cmds["$key"]="${next_level_cmds["$key"]}"
-      _sha_current_cmds["$key"]="${next_level_cmds["$key"]}"
+  _sha_clear_associative_array _sha_current_cmd_children
+  # "${!new_children[@]}" 会扩展为关联数组的所有键的列表
+  for key in "${!new_children[@]}"; do
+      _sha_all_registerd_cmds["$key"]="${new_children["$key"]}"
+      _sha_current_cmd_children["$key"]="${new_children["$key"]}"
   done  
 
 }
@@ -156,8 +186,8 @@ _sha_help() {
   echo "###########################"
   echo "## she help"
   echo "###########################"
-  for key in "${!_sha_current_cmds[@]}"; do
-      echo "$key" : "${_sha_current_cmds[$key]}"
+  for key in "${!_sha_current_cmd_children[@]}"; do
+      echo "[$key]"
   done  
 }
 
@@ -180,7 +210,7 @@ _sha_help() {
 
 
 _sha_is_leaf_cmd() {
-  if [[ "${#_sha_current_cmds[@]}" == "0" ]]; then
+  if [[ "${#_sha_current_cmd_children[@]}" == "0" ]]; then
     return 0;
   fi
   return 1;
@@ -191,18 +221,18 @@ _sha_is_leaf_cmd() {
 
 _sha() {
   local cmd="$1"
-  # echo "_sha(): args:[$*] , current_cmds:[${_sha_all_cmds[*]}]"
+  # echo "_sha(): args:[$*] , current_cmds:[${_sha_all_registerd_cmds[*]}]"
   shift
 
   # 非法命令
-  if [[  "${_sha_current_cmds[$cmd]}" == "" ]]; then
+  if [[  "${_sha_current_cmd_children[$cmd]}" == "" ]]; then
     echo  "ERROR: unknown command $cmd, 请使用 './sha --help' 查看可用的命令。 "
     exit 1;
   fi
   
   # 执行当前命令后，再注册当前命令的子命令
   "$cmd" "$@"
-  _sha_register_next_level_cmds "$cmd"
+  _sha_register_children_cmds "$cmd"
 
   # 根命令本身就是leaf，返回即可
   if _sha_is_leaf_cmd; then
@@ -221,7 +251,7 @@ _sha() {
 }
 
 sha() {
-  _sha_register_next_level_cmds "/"
+  _sha_register_children_cmds "/"
 
   # 根命令本身就是leaf，返回即可
   if _sha_is_leaf_cmd; then

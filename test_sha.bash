@@ -27,8 +27,8 @@ test_all_funcname_is_ok() {
     sha "$@"
   '
   
-  assert_equals "a" "$(bash -c "$script" _ "a" 2>&1)"
-  assert_equals "b" "$(bash -c "$script" _ "b" 2>&1)"
+  assert_equals "a" "$(run_script a)"
+  assert_equals "b" "$(run_script b)"
 }
 
 test_sub_command() {
@@ -44,9 +44,34 @@ test_sub_command() {
 EOF
 )
 
-  assert_equals "a" "$(bash -c "$script" _ "a" 2>&1)"
-  assert_equals "b/b1" "$(bash -c "$script" _ "b" "b1" 2>&1)"
-  assert_equals "b/b2" "$(bash -c "$script" _ "b" "b2" 2>&1)"
+  assert_equals "a" "$(run_script a)"
+  assert_equals "b/b1" "$(run_script b b1)"
+  assert_equals "b/b2" "$(run_script b b2)"
 }
+declare script=""
+run_script() {
+  bash -c "$script" _ "$@" 2>&1
+}
+
+# 内外命令有重名，进入一级命令后正确识别
+test_duplicated_command() {
+  script=$(cat << 'EOF'
+    #!/usr/bin/env bash
+    . ./sha.bash
+    aaa() { echo "aaa"; } 
+    bbb() {
+      aaa() { echo "bbb/aaa"; }  
+      bbb() { echo "bbb/bbb"; }  
+    }
+    sha "$@"
+EOF
+)
+  assert_equals "aaa" "$(run_script aaa)"
+  assert_contains "help" "$(run_script bbb)"
+  assert_equals "bbb/aaa" "$(run_script bbb aaa)"
+  assert_equals "bbb/bbb" "$(run_script bbb bbb)"
+}
+
+
 
 run_tests
