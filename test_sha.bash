@@ -14,6 +14,10 @@ TEST_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
 source "$TEST_DIR/unit_test_framework.bash"
 
+declare script=""
+run_script() {
+  bash -c "$script" _ "$@" 2>&1
+}
 
 
 # 所有函数名都能正确识别，不漏一个，原先代码多了个空格，导致最后一个函数名包含一个空格：
@@ -47,10 +51,6 @@ EOF
   assert_equals "a" "$(run_script a)"
   assert_equals "b/b1" "$(run_script b b1)"
   assert_equals "b/b2" "$(run_script b b2)"
-}
-declare script=""
-run_script() {
-  bash -c "$script" _ "$@" 2>&1
 }
 
 # 内外命令有重名，进入一级命令后正确识别
