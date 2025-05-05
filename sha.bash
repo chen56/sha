@@ -184,7 +184,7 @@ _sha_register_children_cmds() {
 
 _sha_help() {
   echo "###########################"
-  echo "## she help"
+  echo "## sha help"
   echo "###########################"
   for key in "${!_sha_current_cmd_children[@]}"; do
       echo "[$key]"
