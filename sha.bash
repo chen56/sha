@@ -39,7 +39,8 @@ _sha_log(){
 }
 
 _sha_on_error() {
-  _sha_log ERROR "trapped an error: ↑ , trace: ↓"
+  local last_command="$BASH_COMMAND" # Bash 特有变量，显示出错的命令
+  echo  "ERROR: 命令 '$last_command' 执行失败, trapped an error:, trace: ↓" 1>&2
   local i=0
   local stackInfo
   while true; do
