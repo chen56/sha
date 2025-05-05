@@ -97,10 +97,10 @@ _sha_clear_associative_array() {
 }
 
 
-# Usage: _sha_register_next_level <cmd_level>
+# Usage: _sha_register_next_level_cmds <cmd_level>
 # ensure all cmd register
 # root cmd_level is "/"
-_sha_register_next_level() {
+_sha_register_next_level_cmds() {
   local next_level="$1"
 
   _sha_cmd_levels+=("$next_level")
@@ -180,24 +180,64 @@ _sha_help() {
 #   fi
 # }
 
+
+_sha_is_leaf_cmd() {
+  if [[ "${#_sha_current_cmds[@]}" == "0" ]]; then
+    return 0;
+  fi
+  return 1;
+}
+
+
+
+
+_sha() {
+  local cmd="$1"
+  # echo "_sha(): args:[$*] , current_cmds:[${_sha_all_cmds[*]}]"
+  shift
+
+  # 合法命令先执行
+  if [[  "${_sha_current_cmds[$cmd]}" == "" ]]; then
+    echo  "ERROR: unknown command $cmd, 请使用 './sha --help' 查看可用的命令。 "
+    exit 1;
+  fi
+  
+  # 执行当前命令后，再注册当前命令的子命令
+  "$cmd" "$@"
+  _sha_register_next_level_cmds "$cmd"
+
+  # 根命令本身就是leaf，返回即可
+  if _sha_is_leaf_cmd; then
+    return 0;
+  fi
+
+
+  # 后面是否还有参数
+  if (( $#>0 )); then
+    # 有就继续递归处理
+    _sha "$@"
+    return $?;
+  fi
+
+  # 现在所有参数都处理完了
+}
+
 sha() {
-  _sha_register_next_level "/"
-  local cmd arg
-  _sha_help
-  for arg in "$@"; do
-    cmd="$arg"
-    # 找到最后一个cmd
-    if [[ "${_sha_current_cmds["$cmd"]}" != "" ]]; then
-      $cmd "$@";
-      _sha_register_next_level "$cmd"
-      if (( ${#_sha_current_cmds[@]} == 0 )); then
-        echo "关联数组当前为空 (长度为 0)。"
-      fi
-    else
-      break;
-    fi
-    shift
-  done
+  _sha_register_next_level_cmds "/"
+
+  # 根命令本身就是leaf，返回即可
+  if _sha_is_leaf_cmd; then
+    return 0;
+  fi
+
+  # not leaf cmd, no args, help
+  if (( $#==0 )); then
+    _sha_help
+    echo "请使用子命令, 例如: ./sha <cmd> [args]"
+    exit 3;
+  fi
+  # not leaf cmd, has args, process args
+  _sha "$@"
 }
 
 #######################################
