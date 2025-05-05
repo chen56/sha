@@ -136,13 +136,10 @@ _sha_register_next_level_cmds() {
     fi
 
 
-
-  # declare -F | grep "declare -f"  列出函数列表
-  #   =>  declare -f bake.cmd
-  # cut :
-  #    -d " "      => 指定delim分割符
-  #    -f 3        => 指定list列出第3个字段即函数名
-  done <<< "$(declare -F | grep "declare -f" | cut -d " " -f 3) "
+  # 获取所有函数名输入到while循环里
+  # < <(...) 将管道 compgen -A function 的输出作为 while read 的标准输入
+  # compgen -A function比declare -F都是bash的内置函数，但declare -F在各版本间输出有变化所以不用
+  done < <(compgen -A function)
 
   # 填充为下一级命令列表
   # 设置下一级的命令列表前先清空上一级列表

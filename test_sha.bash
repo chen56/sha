@@ -15,21 +15,20 @@ TEST_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$TEST_DIR/unit_test_framework.bash"
 
 
-test_hello() {
+
+# 所有函数名都能正确识别，不漏一个，原先代码多了个空格，导致最后一个函数名包含一个空格：
+#   "$(declare -F | grep "declare -f" | cut -d " " -f 3)"
+test_all_funcname_is_ok() {
  script='
-    set -o errexit   # -e
-    echo "hello world"
+     . ./sha.bash
+
+    a() { echo "a"; } 
+    b() { echo "b"; } 
+    sha "$@"
   '
   
-  assert_equals "hello world" "$(bash -c "$script" 2>&1)"
-}
-test_hello2() {
- script='
-    set -o errexit   # -e
-    echo "hello world"
-  '
-  
-  assert_equals "hello world" "$(bash -c "$script" 2>&1)"
+  assert_equals "a" "$(bash -c "$script" _ "a" 2>&1)"
+  assert_equals "b" "$(bash -c "$script" _ "b" 2>&1)"
 }
 
 test_sub_command() {
