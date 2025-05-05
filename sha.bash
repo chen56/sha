@@ -211,15 +211,15 @@ _sha() {
     return 0;
   fi
 
-
-  # 后面是否还有参数
-  if (( $#>0 )); then
-    # 有就继续递归处理
-    _sha "$@"
-    return $?;
+  # not leaf cmd, no args, help
+  if (( $#==0 )); then
+    _sha_help
+    echo "请使用子命令, 例如: ./sha <cmd> [args]"
+    exit 3;
   fi
 
-  # 现在所有参数都处理完了
+  # 后面还有参数,递归处理
+  _sha "$@"
 }
 
 sha() {
