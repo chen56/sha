@@ -183,12 +183,16 @@ _sha_register_children_cmds() {
 }
 
 _sha_help() {
-  echo "###########################"
-  echo "## sha help"
-  echo "###########################"
+  echo
+  echo "${BASH_SOURCE[-1]} help:"
+  echo
+  echo "
+Available Commands:"
+
   for key in "${!_sha_current_cmd_children[@]}"; do
-      echo "[$key]"
+      echo "  $key"
   done  
+  echo
 }
 
 # cmd  (public api)
@@ -242,7 +246,7 @@ _sha() {
   # not leaf cmd, no args, help
   if (( $#==0 )); then
     _sha_help
-    echo "请使用子命令, 例如: ./sha <cmd> [args]"
+    echo "当前为父命令($cmd), 请使用子命令, 例如: ${BASH_SOURCE[-1]} <cmd> [args]"
     exit 3;
   fi
 
@@ -261,7 +265,7 @@ sha() {
   # not leaf cmd, no args, help
   if (( $#==0 )); then
     _sha_help
-    echo "请使用子命令, 例如: ./sha <cmd> [args]"
+    echo "当前为根命令, 请使用子命令, 例如: ${BASH_SOURCE[-1]} <cmd> [args]"
     exit 3;
   fi
   # not leaf cmd, has args, process args
