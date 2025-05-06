@@ -12,15 +12,27 @@ assert_fail() {
   echo "$@" >&2
 }
 
+
+# 测试没有第二个参数的情况，从标准输入读取
+# echo "test" | assert_equals "test"
+# 测试有第二个参数的情况，使用第二个参数作为内容
+# assert_equals "x" "x"
+
 assert_equals(){
-  local expected="$1" actual="$2"  msg="$3"
+  local expected="$1" actual
+  if [ $# -eq 2 ]; then
+      actual="$2"
+  else
+      read -r actual
+  fi
+
   if [[ "$actual" != "$expected" ]] ; then
     local error_message;
     # shellcheck disable=SC2261
     error_message=$(cat <<ERROR_END
 
 ================================================================================
-error           : $msg
+error           : 
 --------------------<check use: echo -e, disabled Escape>-----------------------
 expected: [$(echo -e "$expected")]
 actual  : [$(echo -e "$actual")]
@@ -58,7 +70,8 @@ assert_contains(){
   fi
 }
 
-
+ 
+ 
 
 # TODO bake.__cmd_children 命令可以改造为既可以输出全称也可以输出短名，还可以设置depth展示层级
 # 查找出所有"tests."开头的函数并执行

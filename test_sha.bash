@@ -70,6 +70,8 @@ EOF
   assert_contains "help" "$(run_script bbb)"
   assert_equals "bbb/aaa" "$(run_script bbb aaa)"
   assert_equals "bbb/bbb" "$(run_script bbb bbb)"
+
+  printf 'a\n' | assert_equals "a\n"
 }
 
 
