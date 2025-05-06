@@ -66,12 +66,11 @@ test_duplicated_command() {
     sha "$@"
 EOF
 )
-  assert_equals "aaa" "$(run_script aaa)"
+  assert_equals   "aaa" "$(run_script aaa)"
+  
   assert_contains "help" "$(run_script bbb)"
-  assert_equals "bbb/aaa" "$(run_script bbb aaa)"
-  assert_equals "bbb/bbb" "$(run_script bbb bbb)"
-
-  printf 'a\n' | assert_equals "a\n"
+  assert_equals   "bbb/aaa" "$(run_script bbb aaa)"
+  assert_equals   "bbb/bbb" "$(run_script bbb bbb)"
 }
 
 

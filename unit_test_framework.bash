@@ -19,45 +19,25 @@ assert_fail() {
 # assert_equals "x" "x"
 
 assert_equals(){
-  local expected="$1" actual
-  if [ $# -eq 2 ]; then
-      actual="$2"
-  else
-      read -r actual
-  fi
+  local expected="$1"  actual="$2"
 
   if [[ "$actual" != "$expected" ]] ; then
     local error_message;
     # shellcheck disable=SC2261
+    # 'printf %s' 将其对应的参数字符串视为纯粹的字符串，不会解释其中的反斜杠转义序列。
+    # 这与 echo 不带 -e 参数时的默认行为（在许多现代 Shell 中是 -E 的效果）一致。
     error_message=$(cat <<ERROR_END
 
-================================================================================
-error           : 
---------------------<check use: echo -e, disabled Escape>-----------------------
-expected: [$(echo -e "$expected")]
-actual  : [$(echo -e "$actual")]
---------------------<check use: echo -E, enable Escape>-------------------------
-expected: [$(echo -E "$expected")]
-actual  : [$(echo -E "$actual")]
------------------------------------<diff>---------------------------------------
-$( diff -y <(echo -E "$expected") <(echo -E "$actual") || true )
-================================================================================
+=====================error - <check use: printf "%s">======================
+expected: [$(printf "%s" "$expected")]
+actual  : [$(printf "%s" "$actual")]
+===========================================================================
 
 ERROR_END
 )
     echo -E "$error_message" >&2
-
-    echo "$-:assert fail, is open vimdiff check details: (y|yes)"
-    # shellcheck disable=SC2154
-    # __interactive is root option
-    if [[ "$__interactive" == true ]];then
-      IFS= read -p "进入vimdiff看细节？打开vimdiff输入(y|Y)" -n 1 -r is_open_diff
-      if [[ "$is_open_diff" == "y" || "$is_open_diff" == "Y" ]]; then
-        vimdiff <(echo -E "$expected") <(echo -E "$actual")
-      fi
-    fi
-     # TODO 应该自己打印堆栈，指出出错的test，这需要定制返回值为4xx
-     return 100
+    # 可以用vimdiff看细节
+    return 1
   fi
 }
 assert_contains(){
@@ -70,8 +50,6 @@ assert_contains(){
   fi
 }
 
- 
- 
 
 # TODO bake.__cmd_children 命令可以改造为既可以输出全称也可以输出短名，还可以设置depth展示层级
 # 查找出所有"tests."开头的函数并执行
