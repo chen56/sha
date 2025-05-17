@@ -12,6 +12,8 @@ set -o pipefail  # default pipeline status==last command status, If set, status=
 
 # 解析到的所有命令列表, 用于判断我们的命令名是否和系统命令冲突
 declare -a all_system_commands
+# 用于存储现有os系统命令或alias，此变量按名称引用，所以跳过shellcheck
+# shellcheck disable=SC2034
 mapfile -t all_system_commands < <(compgen -c)
 
 _sha_real_path() {  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}" ; }
@@ -189,6 +191,11 @@ _sha_register_children_cmds() {
         # 添加其他想处理的函数名
     esac
 
+    if _sha_array_contains all_system_commands "$func_name" ; then
+      echo  "ERROR: function '$func_name' 和os系统命令或alias重名, 请检查这个函数"
+      exit 1;
+    fi
+
     func_content=$(declare -f "$func_name")
     
     # 新增的cmd才是下一级的cmd
@@ -223,6 +230,7 @@ _sha_register_children_cmds() {
   # < <(...) 将管道 compgen -A function 的输出作为 while read 的标准输入
   # compgen -A function比declare -F都是bash的内置函数，但declare -F在各版本间输出有变化所以不用
   done < <(compgen -A function)
+
 
   # 填充为下一级命令列表
   # 设置下一级的命令列表前先清空上一级列表

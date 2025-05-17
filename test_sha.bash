@@ -103,5 +103,19 @@ test_array_contains() {
 }
 
 
+# 内外命令有重名，进入一级命令后正确识别
+test_command_conflict() {
+  # shellcheck disable=SC2317
+  script=$(cat << 'EOF'
+    #!/usr/bin/env bash
+    . ./sha.bash
+    ls() { echo "这个命令和系统ls命令重名，将报错"; } 
+    sha "$@"
+EOF
+)
+  assert_equals   "ERROR: function 'ls' 和os系统命令或alias重名, 请检查这个函数" "$(run_script aaa)"
+
+}
+
 
 run_tests
