@@ -55,6 +55,7 @@ EOF
 
 # 内外命令有重名，进入一级命令后正确识别
 test_duplicated_command() {
+  # shellcheck disable=SC2317
   script=$(cat << 'EOF'
     #!/usr/bin/env bash
     . ./sha.bash
@@ -71,6 +72,34 @@ EOF
   assert_contains "help" "$(run_script bbb)"
   assert_equals   "bbb/aaa" "$(run_script bbb aaa)" # bbb/aaa会覆盖掉外部的aaa
   assert_equals   "bbb/bbb" "$(run_script bbb bbb)" 
+}
+
+test_array_regex_match() {
+  # shellcheck disable=SC1091
+  . "./sha.bash"
+  # shellcheck disable=SC2034
+  a=(apple orange banana)
+  _sha_array_regex_match a "apple"
+  _sha_array_regex_match a "na"
+  _sha_array_regex_match a "o.*e"
+
+  # shellcheck disable=SC2251
+  ! _sha_array_regex_match a "abble"
+  ! _sha_array_regex_match a "e o"
+}
+
+test_array_contains() {
+  # shellcheck disable=SC1091
+  . "./sha.bash"
+  # shellcheck disable=SC2034
+  a=(apple orange banana)
+  _sha_array_contains a "apple"
+  _sha_array_contains a "banana"
+  _sha_array_contains a "orange"
+
+  # shellcheck disable=SC2251
+  ! _sha_array_contains a "pple"
+  ! _sha_array_contains a "oran"
 }
 
 

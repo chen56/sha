@@ -9,6 +9,11 @@ set -o pipefail  # default pipeline status==last command status, If set, status=
                 #   2.we need like this: ${arr[@]+"${arr[@]}"}
                 #   3.影响使用此lib的脚本
            
+
+# 解析到的所有命令列表, 用于判断我们的命令名是否和系统命令冲突
+declare -a all_system_commands
+mapfile -t all_system_commands < <(compgen -c)
+
 _sha_real_path() {  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}" ; }
 
 # 所有找到的子命令列表，不清理，用于每次注册子命令时判断是否为新命令，key是函数名，value是函数内容
@@ -55,11 +60,59 @@ _sha_on_error() {
 
     # 打印出可读性强的信息:
     #    => ./note/bake:38 -> bake.build
-    printf "%s\n" "$(_sha_real_path $file):$no -> $func" >&2
+    printf "%s\n" "$(_sha_real_path "$file"):$no -> $func" >&2
 
     i=$((i + 1))
   done
 }
+
+
+
+# 用途：判断数组 array_name 是否包含精确字符串 search_string
+# Useage：_sha_array_regex_match <array_name> <search_regex>
+# 参数：
+#   $1: 数组的名称
+#   $2: 要搜索的字符串正则
+# 返回值：
+#   0 (成功): 如果找到精确匹配的元素
+#   1 (失败): 如果没有找到匹配的元素
+# 示例：
+#  a=("apple" "banana" "cherry")
+# _sha_array_regex_match a "banana" && echo "matched" || echo "not matched"
+# _sha_array_regex_match a "ch.*y" && echo "matched" || echo "not matched"
+_sha_array_regex_match() {
+  local regex="$2"
+  # 使用 'declare -n' 创建一个名称引用 (nameref)
+  # 这使得 'arr_ref' 成为一个指向由 $array_name 指定的实际关联数组的别名
+  # 对 arr_ref 的任何操作都会直接作用于原始关联数组
+  # requires Bash 4.3+
+  declare -n array_ref="$1"
+
+  local element
+  for element in "${array_ref[@]}"; do
+    if [[ "${element}" =~ $regex ]]; then
+      return 0 # 找到精确匹配
+    fi
+  done
+  return 1 # 没有找到匹配
+}
+_sha_array_contains() {
+  local str="$2"
+  # 使用 'declare -n' 创建一个名称引用 (nameref)
+  # 这使得 'arr_ref' 成为一个指向由 $array_name 指定的实际关联数组的别名
+  # 对 arr_ref 的任何操作都会直接作用于原始关联数组
+  # requires Bash 4.3+
+  declare -n array_ref="$1"
+
+  local element
+  for element in "${array_ref[@]}"; do
+    if [[ "${element}" == "$str" ]]; then
+      return 0 # 找到精确匹配
+    fi
+  done
+  return 1 # 没有找到匹配
+}
+
 
 # 关联数组不像普通数组那样可以: a=() 清理，所以需要自己清理
 # Usage: _sha_clear_associative_array <array_name>
