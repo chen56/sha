@@ -113,7 +113,7 @@ test_command_conflict() {
     sha "$@"
 EOF
 )
-  assert_equals   "ERROR: function 'ls' 和os系统命令或alias重名, 请检查这个函数" "$(run_script aaa)"
+  assert_contains   "ERROR: function 'ls' 和os系统命令或alias重名, 请检查这个函数" "$(run_script aaa)"
 
 }
 

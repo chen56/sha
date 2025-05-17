@@ -191,13 +191,16 @@ _sha_register_children_cmds() {
         # 添加其他想处理的函数名
     esac
 
+    func_content=$(declare -f "$func_name")
+    
     if _sha_array_contains all_system_commands "$func_name" ; then
-      echo  "ERROR: function '$func_name' 和os系统命令或alias重名, 请检查这个函数"
+      echo  "ERROR: function '$func_name' 和os系统命令或alias重名, 请检查这个函数:"
+      echo "$func_content"
       exit 1;
     fi
 
-    func_content=$(declare -f "$func_name")
-    
+
+
     # 新增的cmd才是下一级的cmd
     # 父节点的子命令中可能和当前节点子命令同名
     # 判断依据为：只要当前节点识别出的函数与老的不同即认为是当前节点的子命令：
