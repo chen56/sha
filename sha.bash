@@ -9,18 +9,18 @@ set -o pipefail  # default pipeline status==last command status, If set, status=
                 #   2.we need like this: ${arr[@]+"${arr[@]}"}
                 #   3.影响使用此lib的脚本
            
-
 _sha_real_path() {  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}" ; }
 
 # 所有找到的子命令列表，不清理，用于每次注册子命令时判断是否为新命令，key是函数名，value是函数内容
-declare -A _sha_all_system_commands_map
-
+declare -A _sha_all_registerd_cmds
 # 当前命令子命令列表,每次进入新的命令层级，会清空置换为当前命令的children，key是函数名，value是函数内容
 declare -A _sha_current_cmd_children
 # 当前命令链, 比如执行docker container ls时，解析到最后一个ls时的命令链是：_sha_cmd_chain=(docker container ls)
 declare _sha_cmd_chain=()
 declare _sha_cmd_exclude=("_*" "fn_*" "sha") # 示例前缀数组
 
+# 系统命令列表, 用于判断我们的命令名是否和系统命令冲突
+declare -A _sha_sys_commands
 # replace $HOME with "~"
 # Usage: _sha_pwd <path>
 # Examples:  
@@ -57,173 +57,11 @@ _sha_on_error() {
 
     # 打印出可读性强的信息:
     #    => ./note/bake:38 -> bake.build
-    printf "%s\n" "$(_sha_real_path "$file"):$no -> $func" >&2
+    printf "%s\n" "$(_sha_real_path $file):$no -> $func" >&2
 
     i=$((i + 1))
   done
 }
-
-
-
-# 用途：判断数组 array_name 是否包含精确字符串 search_string
-# Useage：_sha_array_regex_match <array_name> <search_regex>
-# 参数：
-#   $1: 数组的名称
-#   $2: 要搜索的字符串正则
-# 返回值：
-#   0 (成功): 如果找到精确匹配的元素
-#   1 (失败): 如果没有找到匹配的元素
-# 示例：
-#  a=("apple" "banana" "cherry")
-# _sha_array_regex_match a "banana" && echo "matched" || echo "not matched"
-# _sha_array_regex_match a "ch.*y" && echo "matched" || echo "not matched"
-_sha_array_regex_match() {
-  local regex="$2"
-  # 使用 'declare -n' 创建一个名称引用 (nameref)
-  # 这使得 'arr_ref' 成为一个指向由 $array_name 指定的实际关联数组的别名
-  # 对 arr_ref 的任何操作都会直接作用于原始关联数组
-  # requires Bash 4.3+
-  declare -n array_ref="$1"
-
-  local element
-  for element in "${array_ref[@]}"; do
-    if [[ "${element}" =~ $regex ]]; then
-      return 0 # 找到精确匹配
-    fi
-  done
-  return 1 # 没有找到匹配
-}
-
-# _sha_array_find_first_index 
-# 注意：此函数的功能是查找索引，而不是简单判断包含元素，但确实可以用于contains包含判断
-# 
-# Usage: _sha_array_find_first_index <array_name> <search_string>
-# 用途：查找数组 array_name 中精确匹配字符串 str 的元素的索引
-# 参数：
-#   $1: 数组的名称 (不需要加 $)
-#   $2: 要搜索的精确字符串
-# 输出：
-#   如果找到匹配的元素，则输出该元素的索引 (第一个匹配项的索引)
-# 返回值：
-#   0 (成功): 如果找到匹配的元素 (并输出了索引)
-#   1 (失败): 如果没有找到匹配的元素
-# 示例：
-#   my_array=("apple" "banana" "cherry")
-#   # 调用函数并捕获输出和返回值
-#   index=$(_sha_array_find_first_index my_array "banana")
-#   result=$?
-#   if [[ "$result" -eq 0 ]]; then
-#     echo "找到 'banana' 在索引: $index"
-#   else
-#     echo "未找到 'banana', 函数返回: $result"
-#   fi
-_sha_array_find_first_index() {
-  local str="$2"
-  # 使用 'declare -n' 创建一个名称引用 (nameref)
-  # 这使得 'array_ref' 成为一个指向由 $array_name 指定的实际数组的别名
-  # 对 array_ref 的任何操作都会直接作用于原始数组
-  # requires Bash 4.3+
-  declare -n array_ref="$1"
-
-  local index # 用于循环的局部变量，表示数组索引
-
-  # 遍历数组的所有索引
-  # ${!array_ref[@]} 扩展为数组的所有索引
-  for index in "${!array_ref[@]}"; do
-    # 访问当前索引对应的元素，并与搜索字符串进行精确比较
-    if [[ "${array_ref[index]}" == "$str" ]]; then
-      echo "$index" # 找到匹配，输出索引
-      return 0      # 返回成功
-    fi
-  done
-
-  # 遍历完成，没有找到匹配
-  # 注意：Bash 返回值通常是 0-255，返回 -1 是非标准的
-  return 1
-}
-
-
-# 判断集合包含关系
-# Usage: _sha_array_contains <array_name> <search_string>
-# 用途：判断数组 array_name 是否包含精确字符串 search_string
-# 函数：_sha_array_contains
-# 用途：判断数组 array_name 是否包含精确字符串 search_string
-# 参数：
-#   $1: 数组的名称 (不需要加 $)
-#   $2: 要搜索的精确字符串
-# 输出：
-#   无输出
-# 返回值：
-#   0 (成功): 如果找到精确匹配的元素
-#   1 (失败): 如果没有找到匹配的元素
-# 示例：
-#   my_array=("apple" "banana" "cherry")
-#   if _sha_array_contains my_array "banana"; then
-#     echo "数组包含 'banana'"
-#   fi
-#   if ! _sha_array_contains my_array "date"; then
-#     echo "数组不包含 'date'"
-#   fi
-_sha_array_contains() {
-  local search_string="$2"
-  # 使用 'declare -n' 创建一个名称引用 (nameref)
-  # 这使得 'array_ref' 成为一个指向由 $array_name 指定的实际数组的别名
-  # 对 array_ref 的任何操作都会直接作用于原始数组
-  # requires Bash 4.3+
-  declare -n array_ref="$1"
-
-  local element # 用于循环的局部变量
-
-  # 遍历数组的所有元素
-  for element in "${array_ref[@]}"; do
-    # 进行精确字符串比较
-    if [[ "${element}" == "$search_string" ]]; then
-      return 0 # 找到精确匹配
-    fi
-  done
-
-  return 1 # 没有找到匹配
-}
-# 函数：_sha_array_difference
-# 用途：输出数组 array1_name 中不包含在数组 array2_name 中的元素
-# 参数：
-#   $1: 第一个数组的名称 (不需要加 $)
-#   $2: 第二个数组的名称 (不需要加 $)
-# 输出：
-#   将差集元素逐行输出到标准输出
-# 返回值：
-#   0 (成功): 函数执行完成
-# 示例：
-#   array1=("apple" "banana" "cherry" "date")
-#   array2=("banana" "date" "fig")
-#   echo "Array 1: ${array1[@]}"
-#   echo "Array 2: ${array2[@]}"
-#   echo "Difference (Array 1 - Array 2):"
-#   _sha_array_difference array1 array2
-#   # 预期输出:
-#   # apple
-#   # cherry
-_sha_array_difference() {
-  # 使用 declare -n 创建 nameref 变量
-  # arr1 将引用传入的第一个数组 (名称为 $1 的数组)
-  # arr2 将引用传入的第二个数组 (名称为 $2 的数组)
-  declare -n arr1="$1"
-  # shellcheck disable=SC2034
-  declare -n arr2="$2"
-
-  local element # 用于循环第一个数组的局部变量
-
-  # 遍历第一个数组的所有元素 (单层循环)
-  for element in "${arr1[@]}"; do
-    # 如果 _sha_array_contains 返回非零状态 (即未找到)，则输出当前元素
-    # 注意：即使 _sha_array_contains 返回 -1，其退出状态在 0-255 范围内是 255 (非零)
-    if ! _sha_array_find_first_index arr2 "$element" > /dev/null; then
-      echo "$element"
-    fi
-  done
-  return 0
-}
-
 
 # 关联数组不像普通数组那样可以: a=() 清理，所以需要自己清理
 # Usage: _sha_clear_associative_array <array_name>
@@ -302,20 +140,12 @@ _sha_register_children_cmds() {
 
     func_content=$(declare -f "$func_name")
 
-    # if [[ -v _sha_all_system_commands_map["$func_name"] ]]; then
-    #   echo  "ERROR: function '$func_name' 和os系统命令或alias重名, 请检查这个函数:"
-    #   echo "$func_content"
-    #   exit 1;
-    # fi
-
-    # if _sha_array_find_first_index _sha_all_system_commands "$func_name" >/dev/null ; then
-    #   echo  "ERROR: function '$func_name' 和os系统命令或alias重名, 请检查这个函数:"
-    #   echo "$func_content"
-    #   exit 1;
-    # fi
-
-
-
+    if [[ -v _sha_sys_commands["$func_name"] ]]; then
+      echo  "ERROR: function '$func_name' 和os系统命令或alias重名, 请检查这个函数:"
+      echo "$func_content"
+      exit 1;
+    fi
+    
     # 新增的cmd才是下一级的cmd
     # 父节点的子命令中可能和当前节点子命令同名
     # 判断依据为：只要当前节点识别出的函数与老的不同即认为是当前节点的子命令：
@@ -348,7 +178,6 @@ _sha_register_children_cmds() {
   # < <(...) 将管道 compgen -A function 的输出作为 while read 的标准输入
   # compgen -A function比declare -F都是bash的内置函数，但declare -F在各版本间输出有变化所以不用
   done < <(compgen -A function)
-
 
   # 填充为下一级命令列表
   # 设置下一级的命令列表前先清空上一级列表
@@ -451,9 +280,10 @@ sha() {
   _sha "$@"
 }
 
-# Usage: _sha_init
-# 用途：初始化系统命令列表 _sha_all_system_commands_map
-_sha_init_system_commands_map() {
+
+# Usage: _sha_init_sys_commands
+# 用途：初始化系统命令列表 _sha_sys_commands
+_sha_init_sys_commands() {
   # 所有命令列表, 用于判断我们的命令名是否和系统命令冲突
   local -a sys_cmds
   mapfile -t sys_cmds < <(compgen -c)
@@ -476,16 +306,16 @@ _sha_init_system_commands_map() {
     item=${sys_cmds[$i]}
     # -v 检查键是否存在
     if [[ ! -v ignore_functions_map["$item"] ]]; then
-      # 如果元素不存在于 ignore_functions_map 中，则将其作为键添加到 _sha_all_system_commands_map 关联数组
+      # 如果元素不存在于 ignore_functions_map 中，则将其作为键添加到 _sha_sys_commands 关联数组
       # 关联数组的值不重要，这里简单设为 1
-      _sha_all_system_commands_map[${item}]=1
+      _sha_sys_commands[${item}]=1
     fi
   done
 }
+
 
 #######################################
 ## 入口
 #######################################
 trap "_sha_on_error" ERR
-
-# _sha_init_system_commands_map
+_sha_init_sys_commands
