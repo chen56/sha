@@ -10,32 +10,11 @@ set -o pipefail  # default pipeline status==last command status, If set, status=
                 #   3.影响使用此lib的脚本
            
 
-# 解析到的所有命令列表, 用于判断我们的命令名是否和系统命令冲突
-declare -a _sha_all_system_commands
-# 用于存储现有os系统命令或alias，此变量按名称引用，所以跳过shellcheck
-# shellcheck disable=SC2034
-mapfile -t _sha_all_system_commands < <(compgen -c)
-mapfile -t _sha_ignore_functions < <(compgen -A function)
-# mapfile -t _sha_all_system_commands < <(_sha_array_difference _sha_all_system_commands _sha_ignore_functions)
-# 告诉缓存，map 的key 比较是hash比较
-declare -A _sha_ignore_functions_map
-
-# 遍历 array2，将每个元素作为键存入关联数组
-# 关联数组的值不重要，这里简单设为 1
-for _sha_element in "${_sha_ignore_functions[@]}"; do
-  _sha_ignore_functions_map["$_sha_element"]=1
-done
-
-declare -a _sha_all_system_commands_map=()
-
-
-# echo "_sha_all_system_commands: ${_sha_all_system_commands[*]}"
-# echo "before_import_sha_functions: ${before_import_sha_functions[*]}"
-
 _sha_real_path() {  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}" ; }
 
 # 所有找到的子命令列表，不清理，用于每次注册子命令时判断是否为新命令，key是函数名，value是函数内容
-declare -A _sha_all_registerd_cmds
+declare -A _sha_all_system_commands_map
+
 # 当前命令子命令列表,每次进入新的命令层级，会清空置换为当前命令的children，key是函数名，value是函数内容
 declare -A _sha_current_cmd_children
 # 当前命令链, 比如执行docker container ls时，解析到最后一个ls时的命令链是：_sha_cmd_chain=(docker container ls)
@@ -322,12 +301,12 @@ _sha_register_children_cmds() {
     esac
 
     func_content=$(declare -f "$func_name")
-    
-    if [[ -v _sha_all_system_commands_map["$func_name"] ]]; then
-      echo  "ERROR: function '$func_name' 和os系统命令或alias重名, 请检查这个函数:"
-      echo "$func_content"
-      exit 1;
-    fi
+
+    # if [[ -v _sha_all_system_commands_map["$func_name"] ]]; then
+    #   echo  "ERROR: function '$func_name' 和os系统命令或alias重名, 请检查这个函数:"
+    #   echo "$func_content"
+    #   exit 1;
+    # fi
 
     # if _sha_array_find_first_index _sha_all_system_commands "$func_name" >/dev/null ; then
     #   echo  "ERROR: function '$func_name' 和os系统命令或alias重名, 请检查这个函数:"
@@ -472,41 +451,41 @@ sha() {
   _sha "$@"
 }
 
+# Usage: _sha_init
+# 用途：初始化系统命令列表 _sha_all_system_commands_map
+_sha_init_system_commands_map() {
+  # 所有命令列表, 用于判断我们的命令名是否和系统命令冲突
+  local -a sys_cmds
+  mapfile -t sys_cmds < <(compgen -c)
+
+  local -a ignore_functions
+  mapfile -t ignore_functions < <(compgen -A function)
+
+  local -A ignore_functions_map
+  local item
+  for item in "${ignore_functions[@]}"; do
+    ignore_functions_map["$item"]=1
+  done
+
+
+  local array_length=${#sys_cmds[*]}
+
+  # 遍历 sys_cmds 数组，使用基于数字索引的循环
+  # 这种方式假设数组是稠密的 (索引是连续的，没有空洞)
+  for ((i=0; i<array_length; i++)); do
+    item=${sys_cmds[$i]}
+    # -v 检查键是否存在
+    if [[ ! -v ignore_functions_map["$item"] ]]; then
+      # 如果元素不存在于 ignore_functions_map 中，则将其作为键添加到 _sha_all_system_commands_map 关联数组
+      # 关联数组的值不重要，这里简单设为 1
+      _sha_all_system_commands_map[${item}]=1
+    fi
+  done
+}
+
 #######################################
 ## 入口
 #######################################
 trap "_sha_on_error" ERR
 
-
-# for _sha_element in "${_sha_all_system_commands[@]}"; do
-#   :
-#   _sha_all_system_commands_map[s]="s d "
-# done
-
-
-# # 最终结果也用map高速缓存起来
-# declare -a _sha_all_system_commands_map=()
-# # # 遍历原始 array1 的所有元素
-# for _sha_element in "${_sha_all_system_commands[@]}"; do
-# #   # 检查当前元素 $element1 是否作为键存在于 array2_map 关联数组中
-# #   # [[ -v _sha_all_system_commands_result["$_sha_element"] ]] 检查键是否存在
-# #   # [[ ! -v _sha_all_system_commands_result["$_sha_element"] ]] 检查键是否不存在
-# #   if [[ ! -v _sha_ignore_functions_map["$_sha_element"] ]]; then
-# #     # 如果元素不存在，则将其添加到新数组
-#   # echo $_sha_element
-#   _sha_all_system_commands_map["$_sha_element"]=$_sha_element
-#   # _sha_all_system_commands_map["$_sha_element"]=1
-# #   fi
-# done
-
-
-
-# echo -----------------1
-# echo "${#_sha_all_system_commands[@]}"
-# echo "${#_sha_all_system_commands_result[@]}"
-# echo "${#_sha_ignore_functions[@]}"
-# # echo ${_sha_all_system_commands[*]}
-# # echo ${_sha_ignore_functions[*]}
-# echo -----------------2
-
-# _sha_array_difference _sha_all_system_commands _sha_ignore_functions
+# _sha_init_system_commands_map

@@ -146,11 +146,11 @@ test_command_conflict() {
   script=$(cat << 'EOF'
     #!/usr/bin/env bash
     . ./sha.bash
-    ls() { echo "这个命令和系统ls命令重名，将报错"; } 
+    ls() { echo "这个命令和系统ls命令重名,将报错"; } 
     sha "$@"
 EOF
 )
-  assert_contains   "ERROR: function 'ls' 和os系统命令或alias重名, 请检查这个函数" "$(run_script aaa)"
+  assert_contains   "ERROR: function 'ls' 和os系统命令或alias重名, 请检查这个函数" "$(run_script)"
 
 }
 
@@ -171,3 +171,4 @@ EOF
 
 
 run_tests
+# test_command_conflict
