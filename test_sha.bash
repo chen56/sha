@@ -94,13 +94,50 @@ test_array_contains() {
   # shellcheck disable=SC2034
   a=(apple orange banana)
   _sha_array_contains a "apple"
-  _sha_array_contains a "banana"
   _sha_array_contains a "orange"
+  _sha_array_contains a "banana"
 
   # shellcheck disable=SC2251
   ! _sha_array_contains a "pple"
   ! _sha_array_contains a "oran"
 }
+
+test_array_find_first_index() {
+  # shellcheck disable=SC1091
+  . "./sha.bash"
+  # shellcheck disable=SC2034
+  a=(apple orange banana)
+  assert_equals 0  "$(  _sha_array_find_first_index a "apple")"
+  assert_equals 1  "$(  _sha_array_find_first_index a "orange")"
+  assert_equals 2  "$(  _sha_array_find_first_index a "banana")"
+
+  # shellcheck disable=SC2251
+  ! _sha_array_find_first_index a "pple"
+  ! _sha_array_find_first_index a "oran"
+}
+
+
+
+test_array_difference() {
+  # shellcheck disable=SC1091
+  . "./sha.bash"
+  # shellcheck disable=SC2034
+  a=(apple orange banana kiwi)
+  b=(banana kiwi unkown)
+
+  _sha_array_difference a b
+  assert_equals "0" "$?"
+
+  local x=$(_sha_array_difference a b)
+  
+  assert_equals "a"  "a"
+
+
+  # c=(not_exists_str)
+  # assert_equals ""  "$(  _sha_array_difference a c || true)"
+}
+
+
 
 
 # 内外命令有重名，进入一级命令后正确识别
@@ -115,6 +152,21 @@ EOF
 )
   assert_contains   "ERROR: function 'ls' 和os系统命令或alias重名, 请检查这个函数" "$(run_script aaa)"
 
+}
+
+# 内外命令有重名，进入一级命令后正确识别
+test_command_conflict_func_define_before_import_sha() {
+  # shellcheck disable=SC2317
+  script=$(cat << 'EOF'
+    #!/usr/bin/env bash
+    update_sha() { echo "定义在import sha.bash之前的函数应该不被认为是系统命令"; } 
+
+    . ./sha.bash
+    sha "$@"
+EOF
+)
+  # 定义在import sha.bash之前的函数不会被认为是系统命令，所以这里不会报错
+  assert_contains   "定义在import sha.bash之前的函数应该不被认为是系统命令" "$(run_script update_sha)"
 }
 
 
