@@ -21,6 +21,14 @@ declare _sha_cmd_exclude=("_*" "fn_*" "sha") # 示例前缀数组
 
 # 系统命令列表, 用于判断我们的命令名是否和系统命令冲突
 declare -A _sha_sys_commands
+
+
+
+
+##################################################################################################
+### 业务无关的common函数，比如数组、日志等
+##################################################################################################
+
 # replace $HOME with "~"
 # Usage: _sha_pwd <path>
 # Examples:  
@@ -99,6 +107,175 @@ _sha_clear_associative_array() {
         unset 'arr_ref["$key"]'
     done
 }
+
+
+
+
+# 用途：判断数组 array_name 是否包含精确字符串 search_string
+# Useage：_sha_array_regex_match <array_name> <search_regex>
+# 参数：
+#   $1: 数组的名称
+#   $2: 要搜索的字符串正则
+# 返回值：
+#   0 (成功): 如果找到精确匹配的元素
+#   1 (失败): 如果没有找到匹配的元素
+# 示例：
+#  a=("apple" "banana" "cherry")
+# _sha_array_regex_match a "banana" && echo "matched" || echo "not matched"
+# _sha_array_regex_match a "ch.*y" && echo "matched" || echo "not matched"
+_sha_array_regex_match() {
+  local regex="$2"
+  # 使用 'declare -n' 创建一个名称引用 (nameref)
+  # 这使得 'arr_ref' 成为一个指向由 $array_name 指定的实际关联数组的别名
+  # 对 arr_ref 的任何操作都会直接作用于原始关联数组
+  # requires Bash 4.3+
+  declare -n array_ref="$1"
+
+  local element
+  for element in "${array_ref[@]}"; do
+    if [[ "${element}" =~ $regex ]]; then
+      return 0 # 找到精确匹配
+    fi
+  done
+  return 1 # 没有找到匹配
+}
+
+# _sha_array_find_first_index 
+# 注意：此函数的功能是查找索引，而不是简单判断包含元素，但确实可以用于contains包含判断
+# 
+# Usage: _sha_array_find_first_index <array_name> <search_string>
+# 用途：查找数组 array_name 中精确匹配字符串 str 的元素的索引
+# 参数：
+#   $1: 数组的名称 (不需要加 $)
+#   $2: 要搜索的精确字符串
+# 输出：
+#   如果找到匹配的元素，则输出该元素的索引 (第一个匹配项的索引)
+# 返回值：
+#   0 (成功): 如果找到匹配的元素 (并输出了索引)
+#   1 (失败): 如果没有找到匹配的元素
+# 示例：
+#   my_array=("apple" "banana" "cherry")
+#   # 调用函数并捕获输出和返回值
+#   index=$(_sha_array_find_first_index my_array "banana")
+#   result=$?
+#   if [[ "$result" -eq 0 ]]; then
+#     echo "找到 'banana' 在索引: $index"
+#   else
+#     echo "未找到 'banana', 函数返回: $result"
+#   fi
+_sha_array_find_first_index() {
+  local str="$2"
+  # 使用 'declare -n' 创建一个名称引用 (nameref)
+  # 这使得 'array_ref' 成为一个指向由 $array_name 指定的实际数组的别名
+  # 对 array_ref 的任何操作都会直接作用于原始数组
+  # requires Bash 4.3+
+  declare -n array_ref="$1"
+
+  local index # 用于循环的局部变量，表示数组索引
+
+  # 遍历数组的所有索引
+  # ${!array_ref[@]} 扩展为数组的所有索引
+  for index in "${!array_ref[@]}"; do
+    # 访问当前索引对应的元素，并与搜索字符串进行精确比较
+    if [[ "${array_ref[index]}" == "$str" ]]; then
+      echo "$index" # 找到匹配，输出索引
+      return 0      # 返回成功
+    fi
+  done
+
+  # 遍历完成，没有找到匹配
+  # 注意：Bash 返回值通常是 0-255，返回 -1 是非标准的
+  return 1
+}
+
+
+# 判断集合包含关系
+# Usage: _sha_array_contains <array_name> <search_string>
+# 用途：判断数组 array_name 是否包含精确字符串 search_string
+# 函数：_sha_array_contains
+# 用途：判断数组 array_name 是否包含精确字符串 search_string
+# 参数：
+#   $1: 数组的名称 (不需要加 $)
+#   $2: 要搜索的精确字符串
+# 输出：
+#   无输出
+# 返回值：
+#   0 (成功): 如果找到精确匹配的元素
+#   1 (失败): 如果没有找到匹配的元素
+# 示例：
+#   my_array=("apple" "banana" "cherry")
+#   if _sha_array_contains my_array "banana"; then
+#     echo "数组包含 'banana'"
+#   fi
+#   if ! _sha_array_contains my_array "date"; then
+#     echo "数组不包含 'date'"
+#   fi
+_sha_array_contains() {
+  local search_string="$2"
+  # 使用 'declare -n' 创建一个名称引用 (nameref)
+  # 这使得 'array_ref' 成为一个指向由 $array_name 指定的实际数组的别名
+  # 对 array_ref 的任何操作都会直接作用于原始数组
+  # requires Bash 4.3+
+  declare -n array_ref="$1"
+
+  local element # 用于循环的局部变量
+
+  # 遍历数组的所有元素
+  for element in "${array_ref[@]}"; do
+    # 进行精确字符串比较
+    if [[ "${element}" == "$search_string" ]]; then
+      return 0 # 找到精确匹配
+    fi
+  done
+
+  return 1 # 没有找到匹配
+}
+# 函数：_sha_array_difference
+# 用途：输出数组 array1_name 中不包含在数组 array2_name 中的元素
+# 参数：
+#   $1: 第一个数组的名称 (不需要加 $)
+#   $2: 第二个数组的名称 (不需要加 $)
+# 输出：
+#   将差集元素逐行输出到标准输出
+# 返回值：
+#   0 (成功): 函数执行完成
+# 示例：
+#   array1=("apple" "banana" "cherry" "date")
+#   array2=("banana" "date" "fig")
+#   echo "Array 1: ${array1[@]}"
+#   echo "Array 2: ${array2[@]}"
+#   echo "Difference (Array 1 - Array 2):"
+#   _sha_array_difference array1 array2
+#   # 预期输出:
+#   # apple
+#   # cherry
+_sha_array_difference() {
+  # 使用 declare -n 创建 nameref 变量
+  # arr1 将引用传入的第一个数组 (名称为 $1 的数组)
+  # arr2 将引用传入的第二个数组 (名称为 $2 的数组)
+  declare -n arr1="$1"
+  # shellcheck disable=SC2034
+  declare -n arr2="$2"
+
+  local element # 用于循环第一个数组的局部变量
+
+  # 遍历第一个数组的所有元素 (单层循环)
+  for element in "${arr1[@]}"; do
+    # 如果 _sha_array_contains 返回非零状态 (即未找到)，则输出当前元素
+    # 注意：即使 _sha_array_contains 返回 -1，其退出状态在 0-255 范围内是 255 (非零)
+    if ! _sha_array_find_first_index arr2 "$element" > /dev/null; then
+      echo "$element"
+    fi
+  done
+  return 0
+}
+
+##################################################################################################
+### 上面代码是业务无关的common函数，比如数组等
+### 下面是sha命令的实现
+##################################################################################################
+
+
 
 # 函数：获取当前子命令集合，并使用指定的分隔符连接输出。
 # Usage: _sha_cmd_get_children [delimiter:\n]
