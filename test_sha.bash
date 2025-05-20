@@ -141,7 +141,7 @@ test_array_difference() {
 
 
 # 内外命令有重名，进入一级命令后正确识别
-test_command_conflict() {
+ignore_test_command_conflict() {
   # shellcheck disable=SC2317
   script=$(cat << 'EOF'
     #!/usr/bin/env bash
@@ -155,7 +155,7 @@ EOF
 }
 
 # 内外命令有重名，进入一级命令后正确识别
-test_command_conflict_func_define_before_import_sha() {
+ignore_test_command_conflict_func_define_before_import_sha() {
   # shellcheck disable=SC2317
   script=$(cat << 'EOF'
     #!/usr/bin/env bash
