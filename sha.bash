@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+
+# sha.bash消费者可以配置的关键参数，sha.bash默认不开启任何参数，不影响默认bash shell环境
 #set -o errtrace  # -E trap inherited in sub script
-                  # don't use it : print too many error , too complicated,
-set -o errexit   # -e
-set -o functrace # -T If set, any trap on DEBUG and RETURN are inherited by shell functions
-set -o pipefail  # default pipeline status==last command status, If set, status=any command fail
+#set -o errexit   # -e
+#set -o functrace # -T If set, any trap on DEBUG and RETURN are inherited by shell functions
+#set -o pipefail  # default pipeline status==last command status, If set, status=any command fail
 #set -o nounset # -u: 当尝试使用未定义的变量时，立即报错并退出脚本。这有助于防止因变量拼写错误或未初始化导致的意外行为。
                 #  don't use it ,it is crazy, 
                 #   1.bash version is diff Behavior 
@@ -22,9 +23,6 @@ declare _sha_cmd_exclude=("_*" "fn_*" "sha") # 示例前缀数组
 
 # 系统命令列表, 用于判断我们的命令名是否和系统命令冲突
 declare -A _sha_sys_commands
-
-
-
 
 ##################################################################################################
 ### 业务无关的common函数，比如数组、日志等
