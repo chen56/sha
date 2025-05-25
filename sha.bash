@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# sha.bash消费者可以配置的关键参数，sha.bash默认不开启任何参数，不影响默认bash shell环境
+# sha.bash消费者请选用以下关键参数，sha.bash默认不开启任何参数，不影响bash默认环境
 #set -o errtrace  # -E trap inherited in sub script
 #set -o errexit   # -e
 #set -o functrace # -T If set, any trap on DEBUG and RETURN are inherited by shell functions
