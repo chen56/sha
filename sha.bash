@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
-# sha.bash消费者请选用以下关键参数，sha.bash默认不开启任何参数，不影响bash默认环境
+# sha.bash对bash环境目前影响是：
+#   - 捕获打印错误(trap "_sha_on_error" ERR)
+#   - 设置了nullglob行为，防止错误的数组值(shopt -s nullglob)
+
+
+# sha.bash消费者请选用以下关键参数，sha.bash默认不开启这些参数，尽量不影响bash默认环境
 #set -o errtrace  # -E trap inherited in sub script
 #set -o errexit   # -e
 #set -o functrace # -T If set, any trap on DEBUG and RETURN are inherited by shell functions
@@ -11,7 +16,27 @@
                 #   2.we need like this: ${arr[@]+"${arr[@]}"}
                 #   3.影响使用此lib的脚本
 
-# sha.bash对bash环境目前唯一的影响是：捕获打印错误(trap "_sha_on_error" ERR)
+# nullglob选项默认off时：
+# -------------------------.bash
+# bash-5.2$ a=(./no_exists_dir/*/sha)
+# bash-5.2$ declare -p a
+# declare -a a=([0]="./no_exists_dir/*/sha")
+# -------------------------
+# 没有匹配到任何文件时，包含字符串字面量，这不是我们要的
+#
+# 而打开nullglob后：
+# -------------------------.bash
+# shopt -s nullglob
+# bash-5.2$ a=(./no_exists_dir/*/sha)
+# bash-5.2$ declare -p a
+# declare -a a=()
+# -------------------------s
+# 空数组!这是我们想要的
+shopt -s nullglob
+
+
+
+
 
 
 _sha_real_path() {  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}" ; }
