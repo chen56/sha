@@ -10,7 +10,10 @@
                 #   1.bash version is diff Behavior 
                 #   2.we need like this: ${arr[@]+"${arr[@]}"}
                 #   3.影响使用此lib的脚本
-           
+
+# sha.bash对bash环境目前唯一的影响是：捕获打印错误(trap "_sha_on_error" ERR)
+
+
 _sha_real_path() {  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}" ; }
 
 # 所有找到的子命令列表，不清理，用于每次注册子命令时判断是否为新命令，key是函数名，value是函数内容
